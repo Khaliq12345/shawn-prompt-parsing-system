@@ -9,7 +9,7 @@ class AsyncRedisBase:
     def __init__(self, process_id: str):
         self.host = config.REDIS_HOST
         self.port = config.REDIS_PORT
-        self.process_id = process_id 
+        self.process_id = process_id
         self.redis_db = config.REDIS_DB
 
     @asynccontextmanager
