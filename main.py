@@ -1,6 +1,6 @@
-def main():
-    print("Hello from shawn-prompt-parsing-system!")
+from src.api.app import start_app
 
 
 if __name__ == "__main__":
-    main()
+    print("Hello world!")
+    start_app()
