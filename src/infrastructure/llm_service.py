@@ -1,15 +1,16 @@
 from google import genai
 from abc import ABC
 from contextlib import ContextDecorator
-from typing import List
 from src.infrastructure.aws_storage import AWSStorageAsync
+from src.infrastructure.database import save_brand_mention
 from src.infrastructure.prompt import SYSTEM_PROMPT, USER_PROMPT
 from src.infrastructure.redis_service import AsyncRedisBase
-from src.infrastructure.models import BrandMention
+from src.infrastructure.models import BrandMention, BrandMentionDB
 import markdown2
 from markdownify import markdownify as md
 from src.config import config
 from google.genai.types import GenerateContentConfig
+from datetime import datetime
 
 
 def clean_markdown(content: str) -> str:
@@ -51,8 +52,8 @@ class LLMService(ContextDecorator, ABC):
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
         self.storage = AWSStorageAsync(self.bucket)
 
-    async def get_brand_mentions(self, content: str) -> List[BrandMention]:
-        result = []
+    async def get_brand_mentions(self, content: str):
+        results = []
         clean_content = clean_markdown(content)
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
@@ -65,5 +66,13 @@ class LLMService(ContextDecorator, ABC):
                 ],
             ),
         )
-        result: list[BrandMention] = response.parsed if response else []
-        return result
+        results = response.parsed if response else []
+        for result in results:
+            item = BrandMentionDB(
+                process_id=self.process_id,
+                brand_name=result.brand_name,
+                mention_count=result.mention_count,
+                date=datetime.now(),
+            )
+            await save_brand_mention(item)
+        return results
