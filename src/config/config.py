@@ -5,6 +5,8 @@ load_dotenv()
 
 # Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+BUCKET_NAME = os.getenv("BUCKET_NAME", "prompt-parsing")
 # Database
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -21,4 +23,3 @@ REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 # APP
 ENV = os.getenv("ENV", "dev")
 APP_PORT = os.getenv("APP_PORT", 8000)
-
