@@ -14,7 +14,6 @@ class AWSStorageAsync:
         if not os.path.isfile(path):
             print(f"Le fichier {path} n'existe pas.")
             return False
-
         try:
             async with self.session.client(
                 "s3",
@@ -25,7 +24,6 @@ class AWSStorageAsync:
                 await s3_client.upload_file(path, self.bucket_name, key)
                 print(f"Fichier uploadé avec succès : s3://{self.bucket_name}/{key}")
                 return True
-
         except FileNotFoundError as e:
             print("Erreur fichier :", e)
             return False
@@ -47,7 +45,6 @@ class AWSStorageAsync:
                 response = await s3_client.get_object(Bucket=self.bucket_name, Key=key)
                 content = await response["Body"].read()
                 return content.decode("utf-8")
-
         except Exception as e:
             print(f"Error retrieving file content : {e}")
             return None
@@ -58,7 +55,7 @@ if __name__ == "__main__":
     import asyncio
 
     async def main():
-        storage = AWSStorageAsync("browser_outputs")
-        await storage.save_file("test_file/file.md", "README.md")
+        storage = AWSStorageAsync("browser-outputs")
+        await storage.save_file("README.md", "README.md")
 
     asyncio.run(main())
