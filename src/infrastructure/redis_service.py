@@ -6,10 +6,10 @@ from src.config import config
 
 
 class AsyncRedisBase:
-    def __init__(self, process_id: str):
+    def __init__(self, prompt_id: str):
         self.host = config.REDIS_HOST
         self.port = config.REDIS_PORT
-        self.process_id = process_id
+        self.prompt_id = prompt_id
         self.redis_db = config.REDIS_DB
 
     @asynccontextmanager
@@ -30,12 +30,12 @@ class AsyncRedisBase:
     # To set a log (async)
     async def set_log(self, message: str):
         async with self.redis_session() as session:
-            await session.lpush(self.process_id, message)
+            await session.lpush(self.prompt_id, message)
 
     # To retrieve logs (async)
     async def get_log(self) -> str:
         async with self.redis_session() as session:
-            values = await session.lrange(self.process_id, 0, -1)
+            values = await session.lrange(self.prompt_id, 0, -1)
             values.reverse()
             return " \n".join(values)
 
