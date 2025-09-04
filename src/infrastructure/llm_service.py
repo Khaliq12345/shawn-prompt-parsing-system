@@ -14,10 +14,30 @@ from google.genai.types import GenerateContentConfig
 
 def clean_markdown(content: str) -> str:
     html_content = markdown2.markdown(content)
-    print(f"html_content : {html_content}")
-    cleaned_markdown = md(html_content)  # , strip=["img"])
-    print(f"cleaned_markdown : {cleaned_markdown}")
+    # print(f"html_content : {html_content}")
+    cleaned_markdown = md(
+        html_content,
+        strip=[
+            "img",
+            "picture",
+            "figure",
+            "source",
+            "svg",
+            "object",
+            "embed",
+            "iframe",
+        ],
+    )
+    # print(f"cleaned_markdown : {cleaned_markdown}")
     return cleaned_markdown.strip()
+
+
+def use_prompt(clean_content: str) -> str:
+    return f"""
+        {USER_PROMPT}
+        Here is the text :
+        {clean_content}
+        """
 
 
 class LLMService(ContextDecorator, ABC):
@@ -36,11 +56,7 @@ class LLMService(ContextDecorator, ABC):
         clean_content = clean_markdown(content)
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
-            contents=f"""
-                {USER_PROMPT}
-                Here is the text :
-                {clean_content}
-                """,
+            contents=use_prompt(clean_content),
             config=GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=list[BrandMention],

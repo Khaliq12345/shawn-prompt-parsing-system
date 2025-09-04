@@ -2,13 +2,15 @@ import asyncio
 from contextlib import asynccontextmanager
 import redis.asyncio as redis
 
+from src.config import config
+
 
 class AsyncRedisBase:
     def __init__(self, process_id: str):
-        self.host = "localhost"
-        self.port = 6379
-        self.process_id = process_id
-        self.redis_db = 0
+        self.host = config.REDIS_HOST
+        self.port = config.REDIS_PORT
+        self.process_id = process_id 
+        self.redis_db = config.REDIS_DB
 
     @asynccontextmanager
     async def redis_session(self):
