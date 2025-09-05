@@ -4,13 +4,14 @@ from contextlib import ContextDecorator
 from src.infrastructure.aws_storage import AWSStorageAsync
 from src.infrastructure.database import save_brand_mention
 from src.infrastructure.prompt import SYSTEM_PROMPT, USER_PROMPT
-from src.infrastructure.redis_service import AsyncRedisBase
+from src.infrastructure.redis_service import AsyncRedisBase, RedisLogHandler
 from src.infrastructure.models import BrandMention, BrandMentionDB
 import markdown2
 from markdownify import markdownify as md
 from src.config import config
 from google.genai.types import GenerateContentConfig
 from datetime import datetime
+import logging
 
 
 def clean_markdown(content: str) -> str:
@@ -46,19 +47,30 @@ class LLMService(ContextDecorator, ABC):
     ) -> None:
         self.prompt_id = prompt_id
         self.bucket = config.BUCKET_NAME
-        self.redis = AsyncRedisBase(prompt_id)
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
         self.storage = AWSStorageAsync(self.bucket)
+        redis_logger = AsyncRedisBase(prompt_id)
+        # Setup logger
+        self.logger = logging.getLogger(f"{__name__}")
+        self.logger.setLevel(logging.INFO)
+        # Redis log handler
+        redis_handler = RedisLogHandler(redis_logger)
+        redis_handler.setFormatter(
+            logging.Formatter("[%(asctime)s] %(levelname)s - %(message)s")
+        )
+        self.logger.addHandler(redis_handler)
 
     async def get_brand_mentions(self, content: str):
         try:
             results = []
-            await self.redis.set_log("- Starting the LLM prompt parsing system")
-            await self.redis.set_log("- Cleaning Markdown ...")
+            self.logger.info(
+                "- Starting the LLM prompt parsing system \n - Cleaning Markdown ..."
+            )
             clean_content = clean_markdown(content)
-            await self.redis.set_log("- Markdown Successfully Cleaned ")
-            await self.redis.set_log("- Now Generationg Content ...")
-            response = self.client.models.generate_content(
+            self.logger.info(
+                "- Markdown Successfully Cleaned \n - Now Generationg Content ..."
+            )
+            response = await self.client.aio.models.generate_content(
                 model=config.MODEL_NAME,
                 contents=use_prompt(clean_content),
                 config=GenerateContentConfig(
@@ -70,8 +82,9 @@ class LLMService(ContextDecorator, ABC):
                 ),
             )
             results = response.parsed if response else []
-            await self.redis.set_log("- Successfully Generated Content")
-            await self.redis.set_log("- Now Saving in DB ...")
+            self.logger.info(
+                "- Successfully Generated Content \n - Now Saving in DB ..."
+            )
             for i, result in enumerate(results):
                 item = BrandMentionDB(
                     prompt_id=self.prompt_id,
@@ -80,11 +93,9 @@ class LLMService(ContextDecorator, ABC):
                     date=datetime.now(),
                 )
                 await save_brand_mention(item)
-                await self.redis.set_log(
-                    f"- Already saved {i + 1} item(s) on {len(results)}"
-                )
-            await self.redis.set_log("- Process Successfully Ended")
+                self.logger.info(f"- Already saved {i + 1} item(s) on {len(results)}")
+            self.logger.info("- Process Successfully Ended")
             return results
         except Exception as e:
-            await self.redis.set_log(f"- Error While Generationg Content : {e}")
+            self.logger.error(f"- Error While Generationg Content : {e}")
             return []
