@@ -85,3 +85,11 @@ USER_PROMPT = """
     }
 
 """
+
+
+def get_user_prompt(clean_content: str) -> str:
+    return f"""
+        {USER_PROMPT}
+        Here is the text :
+        {clean_content}
+        """

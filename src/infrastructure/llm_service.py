@@ -1,9 +1,14 @@
+import sys
+from typing import Optional
+
+sys.path.append(".")
+import asyncio
 from google import genai
 from abc import ABC
 from contextlib import ContextDecorator
 from src.infrastructure.aws_storage import AWSStorageAsync
 from src.infrastructure.database import save_brand_mention
-from src.infrastructure.prompt import SYSTEM_PROMPT, USER_PROMPT
+from src.infrastructure.prompt import SYSTEM_PROMPT, get_user_prompt
 from src.infrastructure.redis_service import AsyncRedisBase, RedisLogHandler
 from src.infrastructure.models import BrandMention, BrandMentionDB
 import markdown2
@@ -14,42 +19,14 @@ from datetime import datetime
 import logging
 
 
-def clean_markdown(content: str) -> str:
-    html_content = markdown2.markdown(content)
-    cleaned_markdown = md(
-        html_content,
-        strip=[
-            "img",
-            "picture",
-            "figure",
-            "source",
-            "svg",
-            "object",
-            "embed",
-            "iframe",
-        ],
-    )
-    return cleaned_markdown.strip()
-
-
-def use_prompt(clean_content: str) -> str:
-    return f"""
-        {USER_PROMPT}
-        Here is the text :
-        {clean_content}
-        """
-
-
 class LLMService(ContextDecorator, ABC):
-    def __init__(
-        self,
-        prompt_id: str,
-    ) -> None:
+    def __init__(self, prompt_id: str, process_id: str) -> None:
         self.prompt_id = prompt_id
+        self.process_id = process_id
         self.bucket = config.BUCKET_NAME
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
         self.storage = AWSStorageAsync(self.bucket)
-        redis_logger = AsyncRedisBase(prompt_id)
+        redis_logger = AsyncRedisBase(process_id)
         # Setup logger
         self.logger = logging.getLogger(f"{__name__}")
         self.logger.setLevel(logging.INFO)
@@ -60,19 +37,49 @@ class LLMService(ContextDecorator, ABC):
         )
         self.logger.addHandler(self.redis_handler)
 
-    async def get_brand_mentions(self, content: str):
+    def clean_markdown(self, content: str) -> str:
+        html_content = markdown2.markdown(content)
+        cleaned_markdown = md(
+            html_content,
+            strip=[
+                "img",
+                "picture",
+                "figure",
+                "source",
+                "svg",
+                "object",
+                "embed",
+                "iframe",
+            ],
+        )
+        return cleaned_markdown.strip()
+
+    async def save_mentions_to_db(self, results: list[BrandMention]):
+        """Save the brand return by LLM into a database"""
+        for i, result in enumerate(results):
+            item = BrandMentionDB(
+                prompt_id=self.prompt_id,
+                process_id=self.process_id,
+                brand_name=result.brand_name,
+                mention_count=result.mention_count,
+                date=datetime.now(),
+            )
+            await save_brand_mention(item)
+            self.logger.info(f"- Already saved {i + 1} item(s) on {len(results)}")
+
+    async def extract_brand_mentions(self, content: str):
+        results = []
         try:
-            results = []
             self.logger.info(
                 "- Starting the LLM prompt parsing system \n - Cleaning Markdown ..."
             )
-            clean_content = clean_markdown(content)
+            clean_content = self.clean_markdown(content)
             self.logger.info(
                 "- Markdown Successfully Cleaned \n - Now Generationg Content ..."
             )
             response = await self.client.aio.models.generate_content(
                 model=config.MODEL_NAME,
-                contents=use_prompt(clean_content),
+                contents=get_user_prompt(clean_content),
                 config=GenerateContentConfig(
                     response_mime_type="application/json",
                     response_schema=list[BrandMention],
@@ -85,19 +92,31 @@ class LLMService(ContextDecorator, ABC):
             self.logger.info(
                 "- Successfully Generated Content \n - Now Saving in DB ..."
             )
-            for i, result in enumerate(results):
-                item = BrandMentionDB(
-                    prompt_id=self.prompt_id,
-                    brand_name=result.brand_name,
-                    mention_count=result.mention_count,
-                    date=datetime.now(),
-                )
-                await save_brand_mention(item)
-                self.logger.info(f"- Already saved {i + 1} item(s) on {len(results)}")
-            self.logger.info("- Process Successfully Ended")
             return results
         except Exception as e:
             self.logger.error(f"- Error While Generationg Content : {e}")
-            return []
         finally:
             self.logger.removeHandler(self.redis_handler)
+            return results
+
+    async def main(self, s3_key: str) -> Optional[list[BrandMention]]:
+        """Download content from s3 and send to LLM for brand extraction"""
+        content = await self.storage.get_file_content(s3_key)
+        if not content:
+            return None
+        clean_content = self.clean_markdown(content)
+        outputs = await self.extract_brand_mentions(clean_content)
+        if isinstance(outputs, list):
+            await self.save_mentions_to_db(outputs)
+        return outputs
+
+
+if __name__ == "__main__":
+
+    async def main():
+        s3_key = "chatgpt/1756805263/output.txt"
+        llm_service = LLMService("prompt_12345", "process_12345")
+        output = await llm_service.main(s3_key)
+        print(output)
+
+    asyncio.run(main())
