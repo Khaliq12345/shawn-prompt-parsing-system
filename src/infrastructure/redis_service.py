@@ -1,7 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 import redis.asyncio as redis
-
+import logging
 from src.config import config
 
 
@@ -40,13 +40,11 @@ class AsyncRedisBase:
             return " \n".join(values)
 
 
-async def main():
-    redis_client = AsyncRedisBase("process_123")
-    await redis_client.set_log("Process started")
-    await redis_client.set_log("Still running...")
-    logs = await redis_client.get_log()
-    print("Logs:\n", logs)
+class RedisLogHandler(logging.Handler):
+    def __init__(self, redis_logger: AsyncRedisBase):
+        super().__init__()
+        self.redis_logger = redis_logger
 
-
-if __name__ == "__main__":
-    asyncio.run(main())
+    def emit(self, record):
+        msg = self.format(record)
+        asyncio.create_task(self.redis_logger.set_log(msg))
