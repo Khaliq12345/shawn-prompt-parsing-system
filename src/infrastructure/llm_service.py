@@ -54,11 +54,11 @@ class LLMService(ContextDecorator, ABC):
         self.logger = logging.getLogger(f"{__name__}")
         self.logger.setLevel(logging.INFO)
         # Redis log handler
-        redis_handler = RedisLogHandler(redis_logger)
-        redis_handler.setFormatter(
+        self.redis_handler = RedisLogHandler(redis_logger)
+        self.redis_handler.setFormatter(
             logging.Formatter("[%(asctime)s] %(levelname)s - %(message)s")
         )
-        self.logger.addHandler(redis_handler)
+        self.logger.addHandler(self.redis_handler)
 
     async def get_brand_mentions(self, content: str):
         try:
@@ -99,3 +99,5 @@ class LLMService(ContextDecorator, ABC):
         except Exception as e:
             self.logger.error(f"- Error While Generationg Content : {e}")
             return []
+        finally:
+            self.logger.removeHandler(self.redis_handler)
