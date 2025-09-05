@@ -2,6 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes.llm_route import router as llm_router
+from src.api.routes.logs import router as logs_router
 from src.config.config import ENV
 from src.infrastructure.models import create_db_and_tables
 
@@ -22,6 +23,7 @@ app.add_middleware(
 
 # Routes
 app.include_router(prefix="/api", router=llm_router, tags=["LLM"])
+app.include_router(prefix="/api", router=logs_router, tags=["Logs"])
 
 
 def start_app():
