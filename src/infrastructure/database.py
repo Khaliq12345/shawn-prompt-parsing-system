@@ -1,16 +1,70 @@
 from sqlmodel import select
-from src.infrastructure.models import BrandMentionDB, get_engine
+from src.infrastructure.models import BrandMentionDB, LlmProcess, get_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker
+from datetime import datetime
 
 
 # Save a BrandMention
-async def save_brand_mention(item: BrandMentionDB):
+async def save_brand_mention(item_lst: list[BrandMentionDB]):
     engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session() as session:
+        for item in item_lst:
+            session.add(item)
+        await session.commit()
+    await engine.dispose()
+
+
+# Save a LlmProcess
+async def save_llm_process(process_id, prompt_id):
+    engine = get_engine()
+    async_session = async_sessionmaker(engine, expire_on_commit=False)
+    async with async_session() as session:
+        item = LlmProcess(
+            process_id=process_id,
+            prompt_id=prompt_id,
+            status="running",
+            date=datetime.now(),
+        )
         session.add(item)
         await session.commit()
     await engine.dispose()
+
+
+# Update a LlmProcess
+async def update_llm_process(process_id, prompt_id, status):
+    engine = get_engine()
+    async_session = async_sessionmaker(engine, expire_on_commit=False)
+    async with async_session() as session:
+        stmt = (
+            select(LlmProcess)
+            .where(LlmProcess.process_id == process_id)
+            .where(LlmProcess.prompt_id == prompt_id)
+        )
+        process = await session.scalars(stmt)
+        process = process.one()
+        process.status = status
+        process.date = datetime.now()
+        await session.commit()
+    await engine.dispose()
+
+
+# Retrieve a process status
+async def get_llm_process_status(process_id: str, prompt_id: str):
+    engine = get_engine()
+    result = None
+    async_session = async_sessionmaker(engine, expire_on_commit=False)
+    async with async_session() as session:
+        stmt = (
+            select(LlmProcess)
+            .where(LlmProcess.process_id == process_id)
+            .where(LlmProcess.prompt_id == prompt_id)
+        )
+        process = await session.scalars(stmt)
+        process = process.one()
+        result = process.status
+    await engine.dispose()
+    return result
 
 
 # Get all BrandMention from a prompt_id

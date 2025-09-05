@@ -33,6 +33,16 @@ class BrandMentionDB(AsyncAttrs, Base):
     date: Mapped[datetime] = mapped_column(DateTime())
 
 
+# Brand Mention Model
+class LlmProcess(AsyncAttrs, Base):
+    __tablename__ = "llmprocess"
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement="auto")
+    process_id: Mapped[str] = mapped_column(Text())
+    prompt_id: Mapped[str] = mapped_column(Text())
+    status: Mapped[str] = mapped_column(Text())
+    date: Mapped[datetime] = mapped_column(DateTime())
+
+
 # Create all tables of the database
 async def create_db_and_tables():
     engine = get_engine()
