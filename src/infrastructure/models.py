@@ -26,7 +26,7 @@ class BrandMention(BaseModel):
 class BrandMentionDB(AsyncAttrs, Base):
     __tablename__ = "brandmentions"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement="auto")
-    process_id: Mapped[str] = mapped_column(Text())
+    prompt_id: Mapped[str] = mapped_column(Text())
     brand_name: Mapped[str] = mapped_column(Text())
     mention_count: Mapped[float] = mapped_column(Integer())
     date: Mapped[datetime] = mapped_column(DateTime())

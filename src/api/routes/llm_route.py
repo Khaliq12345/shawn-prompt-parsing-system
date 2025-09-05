@@ -12,20 +12,20 @@ async def get_mentions(content: str):
     # Adidas Adizero Evo SL and the Adidas Ultraboost Light are both excellent. The Nike Pegasus is also great. ![Alt text](https://olaila.png "Optional Title") [GitHub](http://github.com)
     try:
         timestamp = int(time.time())
-        process_id = f"run_{timestamp}"
-        llm_class = LLMService(process_id)
+        prompt_id = f"run_{timestamp}"
+        llm_class = LLMService(prompt_id)
         results = await llm_class.get_brand_mentions(content)
-        return {"process_id": process_id, "details": results}
+        return {"prompt_id": prompt_id, "details": results}
     except Exception as e:
         raise HTTPException(500, detail=str(e))
 
 
-# Retrieve all BrandMentions from a process_id
+# Retrieve all BrandMentions from a prompt_id
 @router.get("/get-db-brand-mentions")
-async def get_db_mentions(process_id: str):
+async def get_db_mentions(prompt_id: str):
     try:
-        results = await get_all_brand_mentions(process_id)
-        return {"process_id": process_id, "details": results}
+        results = await get_all_brand_mentions(prompt_id)
+        return {"prompt_id": prompt_id, "details": results}
     except Exception as e:
         raise HTTPException(500, detail=str(e))
 

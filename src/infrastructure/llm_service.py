@@ -44,11 +44,11 @@ def use_prompt(clean_content: str) -> str:
 class LLMService(ContextDecorator, ABC):
     def __init__(
         self,
-        process_id: str,
+        prompt_id: str,
     ) -> None:
-        self.process_id = process_id
+        self.prompt_id = prompt_id
         self.bucket = config.BUCKET_NAME
-        self.redis = AsyncRedisBase(process_id)
+        self.redis = AsyncRedisBase(prompt_id)
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
         self.storage = AWSStorageAsync(self.bucket)
 
@@ -69,7 +69,7 @@ class LLMService(ContextDecorator, ABC):
         results = response.parsed if response else []
         for result in results:
             item = BrandMentionDB(
-                process_id=self.process_id,
+                prompt_id=self.prompt_id,
                 brand_name=result.brand_name,
                 mention_count=result.mention_count,
                 date=datetime.now(),
