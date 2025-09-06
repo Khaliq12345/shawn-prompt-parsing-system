@@ -7,7 +7,11 @@ from google import genai
 from abc import ABC
 from contextlib import ContextDecorator
 from src.infrastructure.aws_storage import AWSStorageAsync
-from src.infrastructure.database import save_brand_mention
+from src.infrastructure.database import (
+    save_brand_mention,
+    save_llm_process,
+    update_llm_process,
+)
 from src.infrastructure.prompt import SYSTEM_PROMPT, get_user_prompt
 from src.infrastructure.redis_service import AsyncRedisBase, RedisLogHandler
 from src.infrastructure.models import BrandMention, BrandMentionDB
@@ -26,7 +30,7 @@ class LLMService(ContextDecorator, ABC):
         self.bucket = config.BUCKET_NAME
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
         self.storage = AWSStorageAsync(self.bucket)
-        redis_logger = AsyncRedisBase(process_id)
+        redis_logger = AsyncRedisBase(prompt_id)
         # Setup logger
         self.logger = logging.getLogger(f"{__name__}")
         self.logger.setLevel(logging.INFO)
@@ -56,16 +60,18 @@ class LLMService(ContextDecorator, ABC):
 
     async def save_mentions_to_db(self, results: list[BrandMention]):
         """Save the brand return by LLM into a database"""
-        for i, result in enumerate(results):
-            item = BrandMentionDB(
+        tmp: list[BrandMentionDB] = [
+            BrandMentionDB(
                 prompt_id=self.prompt_id,
                 process_id=self.process_id,
                 brand_name=result.brand_name,
                 mention_count=result.mention_count,
                 date=datetime.now(),
             )
-            await save_brand_mention(item)
-            self.logger.info(f"- Already saved {i + 1} item(s) on {len(results)}")
+            for result in results
+        ]
+        await save_brand_mention(tmp)
+        self.logger.info(f"- Successfully saved {len(results)} item(s)")
 
     async def extract_brand_mentions(self, content: str):
         results = []
@@ -95,6 +101,7 @@ class LLMService(ContextDecorator, ABC):
             return results
         except Exception as e:
             self.logger.error(f"- Error While Generationg Content : {e}")
+            await update_llm_process(self.process_id, self.prompt_id, "failed")
         finally:
             self.logger.removeHandler(self.redis_handler)
             return results
@@ -104,10 +111,12 @@ class LLMService(ContextDecorator, ABC):
         content = await self.storage.get_file_content(s3_key)
         if not content:
             return None
+        await save_llm_process(self.process_id, self.prompt_id)
         clean_content = self.clean_markdown(content)
         outputs = await self.extract_brand_mentions(clean_content)
         if isinstance(outputs, list):
             await self.save_mentions_to_db(outputs)
+        await update_llm_process(self.process_id, self.prompt_id, "success")
         return outputs
 
 

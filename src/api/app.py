@@ -6,12 +6,15 @@ from src.api.routes.logs import router as logs_router
 from src.config.config import ENV
 from src.infrastructure.models import create_db_and_tables
 
+
 app = FastAPI(
     title="Prompt Parsing System API",
     description="API with required EndPoints - Structured",
     version="1.0.0",
     on_startup=[create_db_and_tables],
 )
+
+
 # CORS
 app.add_middleware(
     CORSMiddleware,

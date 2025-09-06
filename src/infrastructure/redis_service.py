@@ -31,6 +31,7 @@ class AsyncRedisBase:
     async def set_log(self, message: str):
         async with self.redis_session() as session:
             await session.lpush(self.prompt_id, message)
+            await session.expire(self.prompt_id, 86400)  # 24 Hours Expiry
 
     # To retrieve logs (async)
     async def get_log(self) -> str:
