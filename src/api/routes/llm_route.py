@@ -12,6 +12,7 @@ async def extract_brand_mentions(prompt_id: str, s3_key: str):
     # Adidas Adizero Evo SL and the Adidas Ultraboost Light are both excellent. The Nike Pegasus is also great. ![Alt text](https://olaila.png "Optional Title") [GitHub](http://github.com)
     try:
         process_id = f"{prompt_id}_{int(time.time())}"
+        # Run in background using taskiq
         await run_llm_task.kiq(prompt_id, process_id, s3_key)
         return {
             "prompt_id": prompt_id,

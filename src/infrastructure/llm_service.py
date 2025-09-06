@@ -30,7 +30,7 @@ class LLMService(ContextDecorator, ABC):
         self.bucket = config.BUCKET_NAME
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
         self.storage = AWSStorageAsync(self.bucket)
-        redis_logger = AsyncRedisBase(process_id)
+        redis_logger = AsyncRedisBase(prompt_id)
         # Setup logger
         self.logger = logging.getLogger(f"{__name__}")
         self.logger.setLevel(logging.INFO)

@@ -1,10 +1,17 @@
+from src.config import config
 from src.infrastructure.llm_service import LLMService
-import taskiq_fastapi
-from taskiq import ZeroMQBroker
+from taskiq_redis import RedisAsyncResultBackend, ListQueueBroker
 
-broker = ZeroMQBroker()
+# Redis Backend
+result_backend = RedisAsyncResultBackend(
+    redis_url=config.REDIS_URL,
+    result_ex_time=86400,
+)
 
-taskiq_fastapi.init(broker, "src.api.app:app")
+# Redis Broker
+broker = ListQueueBroker(
+    url=config.REDIS_URL,
+).with_result_backend(result_backend)
 
 
 # LLM Run Task
