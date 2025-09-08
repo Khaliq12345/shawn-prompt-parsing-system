@@ -17,5 +17,6 @@ broker = ListQueueBroker(
 # LLM Run Task
 @broker.task
 async def run_llm_task(prompt_id: str, process_id: str, s3_key: str):
+    await broker.startup()
     llm_class = LLMService(prompt_id, process_id)
     await llm_class.main(s3_key)

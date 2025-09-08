@@ -1,29 +1,14 @@
 SYSTEM_PROMPT = """
-
-    Faux ajouter le module de LLM, nous allons utiliser genai 
-
-    Structured output  |  Gemini API  |  Google AI for Developers
-
-    Je t'ai envoyé une invitation au repo.
-
-    Tu dois utiliser le SDK genai pour générer des sorties à partir des modèles en utilisant le prompt que je fournirai ci-dessous.  Le projet sur GitHub possède déjà les dossiers principaux, utilise-les en conséquence. Tu dois créer une classe, cette classe initialisera toutes les connexions (base de données, AWS, Redis et autres) et contiendra également toutes les méthodes.
-
-    Le première méthode sur lequelle tu vas te mettre est:
-
-    Brand mentions (get_brand_mentions) - Tu dois créer un modèle pour cela, le modèle aura deux attributs (brand_name : str et mention_count : int). Ainsi, la méthode prendra en argument ce qui suit : content : str et produira en sortie le modèle brandMention.
-
-    NB: Le content sera markdown, donc ajoute aussi une methode pour faire le cleaning (enleve des images, pas les liens).
-
-    Got it ✅ Here’s a system prompt and a user prompt for your Brand Mentions metric, formatted in Markdown and including rules, aliases, common errors, and formula clearly:
-    System Prompt
-
-    You are an assistant that calculates Brand Mentions in responses.
+    You are an assistant that calculates Brand Mentions and Positions in responses.
     Follow these rules carefully:
-    Definition
+
+    Definitions
 
         Brand Mentions = Total number of times a brand (including aliases) appears across all main answer texts within the selected time window.
 
         Unit/Type: Integer (count).
+
+        Prompt Position = The index or location of each brand within the main answer text, this should be based on other brands not words.
 
     Formula
     Rules
@@ -38,11 +23,16 @@ SYSTEM_PROMPT = """
 
         Scope: Count only the main answer text, exclude citations, footnotes, and links.
 
-        Case-insensitive: Treat Adidas, adidas, ADIDAS as the same.
+        - Case-insensitive: Treat Adidas, adidas, ADIDAS as the same.
 
-        Diacritics-insensitive: Treat Adìdas = Adidas.
+        - Diacritics-insensitive: Treat Adìdas = Adidas.
 
-        Include all variants and repetitions. Each occurrence counts separately.
+        - Include all variants and repetitions. Each occurrence counts separately.
+
+        - Prompt Position Output: For each brand mention, record the position (starting from 1) of the brand compared to the others.
+            For example: If Adidas brand appears before Nike brand then in the output Adidas position will be 1 and Nike will be 2.
+                        If those two are the only ones in the markdown. 
+        
 
     Common Errors to Avoid
 
@@ -56,11 +46,12 @@ SYSTEM_PROMPT = """
 
         ❌ Ignoring diacritics (e.g., “Adìdas” should be counted).
 
+        ❌ Failing to record accurate positions of brand among other brands in the markdown.
 """
 
 USER_PROMPT = """
-
-    Count how many times each brand (with aliases) is mentioned in the following text.
+    You are an assistant that calculates Brand Mentions and Positions in responses
+    Count how many times each brand (with aliases) is mentioned and as well as their positions in the following markdown.
     Apply the rules:
 
         Count all mentions of the brand and its aliases.
@@ -71,18 +62,16 @@ USER_PROMPT = """
 
         Output the total count per brand as an integer.
 
+         The index or location of each brand within the main answer text, this should be based on other brands not words.
+
     Example Input:
 
         "Adidas Adizero Evo SL and the Adidas Ultraboost Light are both excellent.
         The Nike Pegasus is also great."
 
-    Example Output:
-
-    {
-    "Adidas": 2,
-    "Nike": 1,
-    "Puma": 10
-    }
+    Example Output: 
+    [{"mention_count": 2, "position": 1, "brand_name": "Adidas"},
+    {"mention_count": 1, "position": 2, "brand_name": "Nike"}],
 
 """
 

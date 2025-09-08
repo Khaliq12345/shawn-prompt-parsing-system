@@ -17,19 +17,21 @@ class Base(DeclarativeBase):
     pass
 
 
-class BrandMention(BaseModel):
+class BrandModel(BaseModel):
     brand_name: str
     mention_count: int
+    position: int
 
 
 # Brand Mention Model
-class BrandMentionDB(AsyncAttrs, Base):
-    __tablename__ = "brandmentions"
+class BrandDB(AsyncAttrs, Base):
+    __tablename__ = "brands"
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement="auto")
     process_id: Mapped[str] = mapped_column(Text())
     prompt_id: Mapped[str] = mapped_column(Text())
     brand_name: Mapped[str] = mapped_column(Text())
-    mention_count: Mapped[float] = mapped_column(Integer())
+    mention_count: Mapped[int] = mapped_column(Integer())
+    position: Mapped[int] = mapped_column(Integer())
     date: Mapped[datetime] = mapped_column(DateTime())
 
 

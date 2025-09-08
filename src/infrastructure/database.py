@@ -1,11 +1,11 @@
 from sqlmodel import select
-from src.infrastructure.models import BrandMentionDB, LlmProcess, get_engine
+from src.infrastructure.models import BrandDB, LlmProcess, get_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from datetime import datetime
 
 
 # Save a BrandMention
-async def save_brand_mention(item_lst: list[BrandMentionDB]):
+async def save_brand_mention(item_lst: list[BrandDB]):
     engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session() as session:
@@ -15,36 +15,31 @@ async def save_brand_mention(item_lst: list[BrandMentionDB]):
     await engine.dispose()
 
 
-# Save a LlmProcess
-async def save_llm_process(process_id, prompt_id):
-    engine = get_engine()
-    async_session = async_sessionmaker(engine, expire_on_commit=False)
-    async with async_session() as session:
-        item = LlmProcess(
-            process_id=process_id,
-            prompt_id=prompt_id,
-            status="running",
-            date=datetime.now(),
-        )
-        session.add(item)
-        await session.commit()
-    await engine.dispose()
-
-
 # Update a LlmProcess
-async def update_llm_process(process_id, prompt_id, status):
+async def update_llm_process_status(process_id, prompt_id, status):
     engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session() as session:
-        stmt = (
-            select(LlmProcess)
-            .where(LlmProcess.process_id == process_id)
-            .where(LlmProcess.prompt_id == prompt_id)
-        )
-        process = await session.scalars(stmt)
-        process = process.one()
-        process.status = status
-        process.date = datetime.now()
+        # create a new instance
+        if status == "running":
+            item = LlmProcess(
+                process_id=process_id,
+                prompt_id=prompt_id,
+                status="running",
+                date=datetime.now(),
+            )
+            session.add(item)
+        else:
+            # retrieve the process and update its status
+            stmt = (
+                select(LlmProcess)
+                .where(LlmProcess.process_id == process_id)
+                .where(LlmProcess.prompt_id == prompt_id)
+            )
+            process = await session.scalars(stmt)
+            process = process.one()
+            process.status = status
+            process.date = datetime.now()
         await session.commit()
     await engine.dispose()
 
@@ -72,7 +67,7 @@ async def get_all_brand_mentions(prompt_id: str):
     engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session() as session:
-        query = select(BrandMentionDB).where(BrandMentionDB.prompt_id == prompt_id)
+        query = select(BrandDB).where(BrandDB.prompt_id == prompt_id)
         results = await session.execute(query)
         rows = results.scalars().all()
     await engine.dispose()
