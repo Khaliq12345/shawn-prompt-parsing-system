@@ -26,8 +26,8 @@ app.add_middleware(
 )
 
 # Routes
-app.include_router(prefix="/api", router=llm_router, tags=["LLM"])
-app.include_router(prefix="/api", router=logs_router, tags=["Logs"])
+app.include_router(prefix="/api/llm", router=llm_router, tags=["LLM"])
+app.include_router(prefix="/api/logs", router=logs_router, tags=["Logs"])
 app.include_router(prefix="/api/metrics", router=metrics_router, tags=["Metrics"])
 
 

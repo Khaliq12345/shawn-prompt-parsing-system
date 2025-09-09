@@ -102,16 +102,18 @@ async def get_brand_sov_db(prompt_id: str, brand: str):
     sov = 0
     async with async_session() as session:
         # Total Mentions of Brand on all Prompt
-        total_stmt = select(func.sum(BrandDB.mention_count)).where(
-            BrandDB.brand_name == brand
+        brand_mention_stmt = select(func.sum(BrandDB.mention_count)).where(
+            BrandDB.brand_name == brand, BrandDB.prompt_id == prompt_id
         )
         # Total Mentions of Brand on this Prompt
-        brand_stmt = select(func.sum(BrandDB.mention_count)).where(
-            BrandDB.prompt_id == prompt_id, BrandDB.brand_name == brand
+        total_brand_mention_stmt = select(func.sum(BrandDB.mention_count)).where(
+            BrandDB.prompt_id == prompt_id
         )
-        total_mentions = (await session.execute(total_stmt)).scalar() or 0
-        brand_mentions = (await session.execute(brand_stmt)).scalar() or 0
-        sov = (brand_mentions / total_mentions * 100) if total_mentions else 0
+        brand_mentions = (await session.execute(brand_mention_stmt)).scalar() or 0
+        total_brand_mentions = (
+            await session.execute(total_brand_mention_stmt)
+        ).scalar() or 0
+        sov = (brand_mentions / total_brand_mentions) * 100
     await engine.dispose()
     return round(sov, 2)
 
