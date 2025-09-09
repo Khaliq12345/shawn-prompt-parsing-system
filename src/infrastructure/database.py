@@ -166,3 +166,37 @@ async def get_brand_position_db(prompt_id: str, brand: str):
         average_position = total_position / count_mentions
     await engine.dispose()
     return round(average_position, 2)
+
+
+# Brand Ranking DB Function
+async def get_brand_ranking_db(prompt_id: str):
+    engine = get_engine()
+    async_session = async_sessionmaker(engine, expire_on_commit=False)
+    async with async_session() as session:
+        # Total Mentions per Brand for this Prompt
+        stmt = (
+            select(
+                BrandDB.brand_name,
+                func.sum(BrandDB.mention_count),
+            )
+            .where(BrandDB.prompt_id == prompt_id)
+            .group_by(BrandDB.brand_name)
+            .order_by(func.sum(BrandDB.mention_count).desc())
+        )
+        result = await session.execute(stmt)
+        rows = result.all()
+    # Apply competition ranking
+    ranking = []
+    current_rank = 0
+    last_count = None
+    skip = 0
+    for brand, count in rows:
+        if count != last_count:
+            current_rank += 1 + skip
+            skip = 0
+        else:
+            skip += 1
+        ranking.append({"brand": brand, "mention_count": count, "rank": current_rank})
+        last_count = count
+    await engine.dispose()
+    return ranking
