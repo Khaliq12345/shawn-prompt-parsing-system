@@ -4,6 +4,7 @@ from src.infrastructure.database import (
     get_brand_coverage_db,
     get_brand_mentions_db,
     get_brand_position_db,
+    get_brand_ranking_db,
     get_brand_sov_db,
 )
 
@@ -46,5 +47,14 @@ async def get_brand_position(prompt_id: str, brand: str):
     try:
         result = await get_brand_position_db(prompt_id, brand)
         return {"data": {"position": result}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {e}")
+
+# Brand Ranking
+@router.get("/metrics/brand-ranking")
+async def get_brand_ranking(prompt_id: str):
+    try:
+        result = await get_brand_ranking_db(prompt_id)
+        return {"data": {"ranking": result}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
