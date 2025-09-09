@@ -83,6 +83,7 @@ async def get_all_brand_mentions(prompt_id: str):
 async def get_brand_mentions_db(prompt_id: str, brand: str):
     engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
+    mention_sum = 0
     async with async_session() as session:
         # Total Mentions of Brand on this Prompt
         stmt = select(func.sum(BrandDB.mention_count)).where(
@@ -98,6 +99,7 @@ async def get_brand_mentions_db(prompt_id: str, brand: str):
 async def get_brand_sov_db(prompt_id: str, brand: str):
     engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
+    sov = 0
     async with async_session() as session:
         # Total Mentions of Brand on all Prompt
         total_stmt = select(func.sum(BrandDB.mention_count)).where(
@@ -118,15 +120,16 @@ async def get_brand_sov_db(prompt_id: str, brand: str):
 async def get_brand_coverage_db(prompt_id: str, brand: str):
     engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
+    coverage = 0
     async with async_session() as session:
         # Total Records Mentioning Brand for this Prompt
-        covered_stmt = select(func.count(func.distinct(BrandDB.id))).where(
+        covered_stmt = select(func.count(BrandDB.id)).where(
             BrandDB.prompt_id == prompt_id,
             BrandDB.brand_name == brand,
             BrandDB.mention_count > 0,
         )
         # Total Records for this Prompt Mentioning Brand or Not
-        total_stmt = select(func.count(func.distinct(BrandDB.id))).where(
+        total_stmt = select(func.count(BrandDB.id)).where(
             BrandDB.prompt_id == prompt_id
         )
         covered = (await session.execute(covered_stmt)).scalar() or 0
@@ -140,6 +143,7 @@ async def get_brand_coverage_db(prompt_id: str, brand: str):
 async def get_brand_position_db(prompt_id: str, brand: str):
     engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
+    average_position = 0
     async with async_session() as session:
         # Total Positions for this Prompt Mentioning Brand
         sum_stmt = select(func.sum(BrandDB.position)).where(
@@ -148,7 +152,7 @@ async def get_brand_position_db(prompt_id: str, brand: str):
             BrandDB.mention_count > 0,
         )
         # Total Records Mentioning Brand for this Prompt
-        count_stmt = select(func.count(func.distinct(BrandDB.id))).where(
+        count_stmt = select(func.count(BrandDB.id)).where(
             BrandDB.prompt_id == prompt_id,
             BrandDB.brand_name == brand,
             BrandDB.mention_count > 0,
