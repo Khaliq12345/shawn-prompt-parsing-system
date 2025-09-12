@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes.llm_route import router as llm_router
 from src.api.routes.logs import router as logs_router
 from src.api.routes.metrics import router as metrics_router
-from src.config.config import ENV
+from src.config.config import APP_PORT, ENV
 from src.infrastructure.models import create_db_and_tables
 
 
@@ -34,7 +34,7 @@ app.include_router(prefix="/api/metrics", router=metrics_router, tags=["Metrics"
 def start_app():
     uvicorn.run(
         "src.api.app:app",
-        host="localhost",
-        port=8003,
+        host="0.0.0.0",
+        port=APP_PORT,
         reload=ENV != "prod",
     )
