@@ -9,6 +9,7 @@ services:
       - "${APP_PORT}:8000"
     depends_on:
       - redis
+    restart: always
 
   worker:
     build: .
@@ -17,7 +18,9 @@ services:
     command: uv run taskiq worker src.infrastructure.taskiq_app:broker
     depends_on:
       - redis
+    restart: always
 
 
   redis:
     image: redis:7-alpine
+    restart: always
