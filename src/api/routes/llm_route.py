@@ -1,6 +1,8 @@
 import time
 from fastapi import APIRouter, HTTPException
-from src.infrastructure.database import get_all_brand_mentions, get_llm_process_status
+from src.infrastructure.database import (
+    get_llm_process_status,
+)
 from src.infrastructure.taskiq_app import run_llm_task
 
 router = APIRouter(prefix="", responses={404: {"description": "Not found"}})
@@ -33,15 +35,5 @@ async def get_pricess_status(prompt_id: str, process_id: str):
             "process_id": process_id,
             "status": status,
         }
-    except Exception as e:
-        raise HTTPException(500, detail=str(e))
-
-
-# Retrieve all BrandMentions from a prompt_id
-@router.get("/get-db-brand-mentions")
-async def get_db_mentions(prompt_id: str):
-    try:
-        results = await get_all_brand_mentions(prompt_id)
-        return {"prompt_id": prompt_id, "details": results}
     except Exception as e:
         raise HTTPException(500, detail=str(e))
