@@ -23,3 +23,5 @@ REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 # APP
 ENV = os.getenv("ENV", "dev")
 APP_PORT = int(os.getenv("APP_PORT", 8000))
+# API KEY
+API_KEY = os.getenv("API_KEY")
