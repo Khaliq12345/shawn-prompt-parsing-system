@@ -24,7 +24,7 @@ app = FastAPI(
     title="Prompt Parsing System API",
     description="API with required EndPoints - Structured",
     version="1.0.0",
-    #on_startup=[create_db_and_tables],
+    on_startup=[create_db_and_tables],
     dependencies=[Depends(get_api_key)],
 )
 
