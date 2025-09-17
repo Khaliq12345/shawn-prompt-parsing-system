@@ -1,6 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, HTTPException, Security, Depends
-from fastapi.security.api_key import APIKeyQuery
+from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes.llm_route import router as llm_router
 from src.api.routes.logs import router as logs_router
@@ -9,14 +9,14 @@ from src.config.config import APP_PORT, ENV
 from src.infrastructure.models import create_db_and_tables
 from src.config.config import API_KEY
 
-API_KEY_NAME = "api_key"
-api_key_query = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
+API_KEY_NAME = "X-API-KEY"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
 
-def get_api_key(api_key_query: str = Security(api_key_query)):
-    if api_key_query == API_KEY:
+def get_api_key(api_key_header: str = Security(api_key_header)):
+    if api_key_header == API_KEY:
         print("Autorisation réussi")
-        return api_key_query
+        return api_key_header
     raise HTTPException(status_code=403, detail="Invalid or missing API Key")
 
 
@@ -24,9 +24,8 @@ app = FastAPI(
     title="Prompt Parsing System API",
     description="API with required EndPoints - Structured",
     version="1.0.0",
-    on_startup=[create_db_and_tables],
+    #on_startup=[create_db_and_tables],
     dependencies=[Depends(get_api_key)],
-
 )
 
 
