@@ -23,7 +23,8 @@ class AsyncRedisBase:
         try:
             yield session
         except Exception as e:
-            print(f"REDIS: Session error {e}")
+            await session.aclose()
+            raise ValueError(f"REDIS: Session error {e}")
         finally:
             await session.aclose()
 

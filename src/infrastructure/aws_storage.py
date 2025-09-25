@@ -9,16 +9,12 @@ class AWSStorageAsync:
         self.session = aioboto3.Session()
 
     async def get_file_content(self, key: str) -> str | None:
-        try:
-            async with self.session.client(
-                "s3",
-                region_name=self.region_name,
-                aws_access_key_id=config.AWS_ACCESS_KEY_ID,
-                aws_secret_access_key=config.AWS_SECRET_ACCESS_KEY,
-            ) as s3_client:
-                response = await s3_client.get_object(Bucket=self.bucket_name, Key=key)
-                content = await response["Body"].read()
-                return content.decode("utf-8")
-        except Exception as e:
-            print(f"Error retrieving file content : {e}")
-            return None
+        async with self.session.client(
+            "s3",
+            region_name=self.region_name,
+            aws_access_key_id=config.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=config.AWS_SECRET_ACCESS_KEY,
+        ) as s3_client:
+            response = await s3_client.get_object(Bucket=self.bucket_name, Key=key)
+            content = await response["Body"].read()
+            return content.decode("utf-8")

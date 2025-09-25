@@ -94,14 +94,18 @@ class LLMService(ContextDecorator, ABC):
             ),
         )
         results = response.parsed if response else []
-        self.logger.info("- Successfully Generated Content \n - Now Saving in DB ...")
+        self.logger.info(
+            "- Successfully Generated Content \n - Now Saving in DB ..."
+        )
         return results
 
     async def main(self, s3_key: str) -> Optional[list[BrandModel]]:
         """Download content from s3 and send to LLM for brand extraction"""
         outputs = []
         try:
-            await update_llm_process_status(self.process_id, self.prompt_id, "running")
+            await update_llm_process_status(
+                self.process_id, self.prompt_id, "running"
+            )
             content = await self.storage.get_file_content(s3_key)
             if not content:
                 return None
@@ -109,10 +113,14 @@ class LLMService(ContextDecorator, ABC):
             outputs = await self.extract_brand_mentions(clean_content)
             if isinstance(outputs, list):
                 await self.save_mentions_to_db(outputs)
-            await update_llm_process_status(self.process_id, self.prompt_id, "success")
+            await update_llm_process_status(
+                self.process_id, self.prompt_id, "success"
+            )
         except Exception as e:
             self.logger.error(f"- Error While Generationg Content : {e}")
-            await update_llm_process_status(self.process_id, self.prompt_id, "failed")
+            await update_llm_process_status(
+                self.process_id, self.prompt_id, "failed"
+            )
         finally:
             self.logger.removeHandler(self.redis_handler)
 
