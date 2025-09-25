@@ -11,7 +11,6 @@ router = APIRouter(prefix="", responses={404: {"description": "Not found"}})
 # Start and record BrandMentions
 @router.get("/extract-brand-info")
 async def extract_brand_mentions(prompt_id: str, s3_key: str):
-    # Adidas Adizero Evo SL and the Adidas Ultraboost Light are both excellent. The Nike Pegasus is also great. ![Alt text](https://olaila.png "Optional Title") [GitHub](http://github.com)
     try:
         process_id = f"{prompt_id}_{int(time.time())}"
         # Run in background using taskiq
@@ -37,3 +36,4 @@ async def get_pricess_status(prompt_id: str, process_id: str):
         }
     except Exception as e:
         raise HTTPException(500, detail=str(e))
+
