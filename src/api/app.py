@@ -5,9 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes.llm_route import router as llm_router
 from src.api.routes.logs import router as logs_router
 from src.api.routes.metrics import router as metrics_router
-from src.config.config import APP_PORT, ENV
-from src.infrastructure.models import create_db_and_tables
-from src.config.config import API_KEY
+from src.config.config import APP_PORT, ENV, API_KEY
+from src.infrastructure.database import create_db_and_tables, dispose_engine
 
 API_KEY_NAME = "X-API-KEY"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
@@ -24,6 +23,7 @@ app = FastAPI(
     description="API with required EndPoints - Structured",
     version="1.0.0",
     on_startup=[create_db_and_tables],
+    on_shutdown=[dispose_engine],
     dependencies=[Depends(get_api_key)],
 )
 
@@ -39,8 +39,8 @@ app.add_middleware(
 
 # Routes
 app.include_router(prefix="/api/llm", router=llm_router, tags=["LLM"])
-app.include_router(prefix="/api/logs", router=logs_router, tags=["Logs"])
-app.include_router(prefix="/api/metrics", router=metrics_router, tags=["Metrics"])
+app.include_router(prefix="/api/logs", router=logs_router, tags=["LOGS"])
+app.include_router(prefix="/api/metrics", router=metrics_router, tags=["METRICS"])
 
 
 def start_app():

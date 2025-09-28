@@ -1,24 +1,44 @@
-from sqlalchemy import func
+from sqlalchemy import func, case
 from sqlmodel import select
-from src.infrastructure.models import BrandDB, LlmProcess, get_engine
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from src.infrastructure.models import BrandDB, LlmProcess, Base
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from datetime import datetime
+from src.config import config
+
+# todo - add date filter to the endpoints
+
+
+def get_engine():
+    engine = create_async_engine(
+        f"postgresql+psycopg://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:5432/{config.DB_NAME}"
+    )
+    return engine
+
+
+async def dispose_engine():
+    await engine.dispose()
+
+
+engine = get_engine()
+
+
+# Create all tables of the database
+async def create_db_and_tables():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 # Save a BrandMention
 async def save_brand_mention(item_lst: list[BrandDB]):
-    engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session() as session:
         for item in item_lst:
             session.add(item)
         await session.commit()
-    await engine.dispose()
 
 
 # Update a LlmProcess
 async def update_llm_process_status(process_id, prompt_id, status):
-    engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session() as session:
         # create a new instance
@@ -42,7 +62,6 @@ async def update_llm_process_status(process_id, prompt_id, status):
             process.status = status
             process.date = datetime.now()
         await session.commit()
-    await engine.dispose()
 
 
 # Retrieve a process status
@@ -65,112 +84,153 @@ async def get_llm_process_status(process_id: str, prompt_id: str):
 
 # Get all BrandMention from a prompt_id
 async def get_all_brand_mentions(prompt_id: str):
-    engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session() as session:
         query = select(BrandDB).where(BrandDB.prompt_id == prompt_id)
         results = await session.execute(query)
         rows = results.scalars().all()
-    await engine.dispose()
     return rows
 
 
 # ----- Metrics -----
-#
 
 
 # Brand Mentions
 async def get_brand_mentions_db(prompt_id: str, brand: str):
-    engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
-    mention_sum = 0
+    mentions = []
     async with async_session() as session:
         # Total Mentions of Brand on this Prompt
-        stmt = select(func.sum(BrandDB.mention_count)).where(
-            BrandDB.prompt_id == prompt_id, BrandDB.brand_name == brand
+        stmt = (
+            select(
+                BrandDB.date,
+                BrandDB.process_id,
+                func.sum(BrandDB.mention_count).label("mentions"),
+            )
+            .group_by(BrandDB.process_id, BrandDB.date)
+            .where(BrandDB.prompt_id == prompt_id, BrandDB.brand_name == brand)
         )
+        # executing the statement
         result = await session.execute(stmt)
-        mention_sum = result.scalar() or 0
-    await engine.dispose()
-    return mention_sum
+        mentions = result.mappings().all()
+    return mentions
 
 
 # Brand Share of Voice
 async def get_brand_sov_db(prompt_id: str, brand: str):
-    engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
-    sov = 0
+    sov_results = []
     async with async_session() as session:
-        # Total Mentions of Brand on all Prompt
-        brand_mention_stmt = select(func.sum(BrandDB.mention_count)).where(
-            BrandDB.brand_name == brand, BrandDB.prompt_id == prompt_id
+        # getting the statement to calculate the share of voice
+        stmt = (
+            select(
+                BrandDB.date,
+                BrandDB.process_id,
+                (
+                    func.sum(
+                        case(
+                            (
+                                BrandDB.brand_name == brand,
+                                BrandDB.mention_count,
+                            ),
+                            else_=0,
+                        )
+                    )
+                    * 100
+                    / func.sum(BrandDB.mention_count)
+                ).label("sov"),
+            )
+            .where(BrandDB.prompt_id == prompt_id)
+            .group_by(BrandDB.date, BrandDB.process_id)
         )
-        # Total Mentions of Brand on this Prompt
-        total_brand_mention_stmt = select(func.sum(BrandDB.mention_count)).where(
-            BrandDB.prompt_id == prompt_id
-        )
-        brand_mentions = (await session.execute(brand_mention_stmt)).scalar() or 0
-        total_brand_mentions = (
-            await session.execute(total_brand_mention_stmt)
-        ).scalar() or 0
-        sov = (brand_mentions / total_brand_mentions) * 100
-    await engine.dispose()
-    return round(sov, 2)
+        # executing statement
+        result = await session.execute(stmt)
+        sov_results = result.mappings().all()
+    return sov_results
 
 
 # Brand Coverage
 async def get_brand_coverage_db(prompt_id: str, brand: str):
-    engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
-    coverage = 0
+    coverage_results = []
     async with async_session() as session:
-        # Total Records Mentioning Brand for this Prompt
-        covered_stmt = select(func.count(BrandDB.id)).where(
-            BrandDB.prompt_id == prompt_id,
-            BrandDB.brand_name == brand,
-            BrandDB.mention_count > 0,
+        # getting the statement to calculate the coverage
+        stmt = (
+            select(
+                BrandDB.date.label("date"),
+                BrandDB.process_id.label("process_id"),
+                (
+                    func.sum(case((BrandDB.brand_name == brand, 1), else_=0))
+                    * 100.0
+                    / func.count(BrandDB.id)
+                ).label("coverage"),
+            )
+            .where(BrandDB.prompt_id == prompt_id)
+            .group_by(BrandDB.date, BrandDB.process_id)
         )
-        # Total Records for this Prompt Mentioning Brand or Not
-        total_stmt = select(func.count(BrandDB.id)).where(
-            BrandDB.prompt_id == prompt_id
-        )
-        covered = (await session.execute(covered_stmt)).scalar() or 0
-        total = (await session.execute(total_stmt)).scalar() or 1
-        coverage = (covered / total * 100) if total else 0
-    await engine.dispose()
-    return round(coverage, 2)
+        # executing the statement
+        result = await session.execute(stmt)
+        coverage_results = [
+            {
+                "date": row["date"],
+                "process_id": row["process_id"],
+                "coverage": round(row["coverage"] or 0, 2),
+            }
+            for row in result.mappings().all()
+        ]
+
+    return coverage_results
 
 
 # Brand Position
 async def get_brand_position_db(prompt_id: str, brand: str):
-    engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
-    average_position = 0
+    avg_pos_results = []
     async with async_session() as session:
-        # Total Positions for this Prompt Mentioning Brand
-        sum_stmt = select(func.sum(BrandDB.position)).where(
-            BrandDB.prompt_id == prompt_id,
-            BrandDB.brand_name == brand,
-            BrandDB.mention_count > 0,
+        # calcuating the brand position
+        stmt = (
+            select(
+                BrandDB.date.label("date"),
+                BrandDB.process_id.label("process_id"),
+                (
+                    func.sum(
+                        case(
+                            (BrandDB.mention_count > 0, BrandDB.position),
+                            else_=0,
+                        )
+                    )
+                    / func.nullif(
+                        func.count(
+                            case(
+                                (BrandDB.mention_count > 0, BrandDB.id),
+                                else_=None,
+                            )
+                        ),
+                        0,
+                    )
+                ).label("average_position"),
+            )
+            .where(
+                BrandDB.prompt_id == prompt_id,
+                BrandDB.brand_name == brand,
+            )
+            .group_by(BrandDB.date, BrandDB.process_id)
         )
-        # Total Records Mentioning Brand for this Prompt
-        count_stmt = select(func.count(BrandDB.id)).where(
-            BrandDB.prompt_id == prompt_id,
-            BrandDB.brand_name == brand,
-            BrandDB.mention_count > 0,
-        )
-        total_position = (await session.execute(sum_stmt)).scalar() or 0
-        count_mentions = (
-            await session.execute(count_stmt)
-        ).scalar() or 1  # éviter division par zéro
-        average_position = total_position / count_mentions
-    await engine.dispose()
-    return round(average_position, 2)
+        # executing the statement and parsing it correctly
+        result = await session.execute(stmt)
+        avg_pos_results = [
+            {
+                "date": row["date"],
+                "process_id": row["process_id"],
+                "average_position": round(row["average_position"] or 0, 2),
+            }
+            for row in result.mappings().all()
+        ]
+    return avg_pos_results
 
 
 # Brand Ranking DB Function
 async def get_brand_ranking_db(prompt_id: str):
-    engine = get_engine()
     async_session = async_sessionmaker(engine, expire_on_commit=False)
     async with async_session() as session:
         # Total Mentions per Brand for this Prompt
@@ -196,7 +256,8 @@ async def get_brand_ranking_db(prompt_id: str):
             skip = 0
         else:
             skip += 1
-        ranking.append({"brand": brand, "mention_count": count, "rank": current_rank})
+        ranking.append(
+            {"brand": brand, "mention_count": count, "rank": current_rank}
+        )
         last_count = count
-    await engine.dispose()
     return ranking

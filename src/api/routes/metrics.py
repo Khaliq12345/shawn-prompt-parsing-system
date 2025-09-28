@@ -50,11 +50,13 @@ async def get_brand_position(prompt_id: str, brand: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
 
+
 # Brand Ranking
-@router.get("/metrics/brand-ranking")
+@router.get("/brand-ranking")
 async def get_brand_ranking(prompt_id: str):
     try:
         result = await get_brand_ranking_db(prompt_id)
         return {"data": {"ranking": result}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
+
