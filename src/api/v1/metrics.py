@@ -1,63 +1,116 @@
 from fastapi import APIRouter, HTTPException
+from src.infrastructure.click_house import ClickHouse
 
-from src.infrastructure.database import (
-    get_brand_coverage_db,
-    get_brand_mentions_db,
-    get_brand_position_db,
-    get_brand_ranking_db,
-    get_brand_sov_db,
-)
+clickhouse = ClickHouse()
 
 router = APIRouter(
-    prefix="/report/metrics", responses={404: {"description": "Not found"}}
+    prefix="/report/metrics",
+    responses={404: {"description": "Not found"}}
 )
 
 
 # Brand Mentions
 @router.get("/mentions")
-async def get_brand_mentions(prompt_id: str, brand: str):
+def brand_mentions(
+    brand: str,
+    brand_report_id: str,
+    start_date: str = "",
+    end_date: str = "",
+    model: str = "all"
+):
     try:
-        result = await get_brand_mentions_db(prompt_id, brand)
-        return {"data": {"mentions": result}}
+        result = clickhouse.get_brand_mention(
+            brand=brand,
+            brand_report_id=brand_report_id,
+            start_date=start_date,
+            end_date=end_date,
+            model=model
+        )
+        return {"data": {"mentions": result.get("data", 0)}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
 
 
 # Brand Share of Voice
 @router.get("/share-of-voice")
-async def get_brand_sov(prompt_id: str, brand: str):
+def brand_sov(
+    brand: str,
+    brand_report_id: str,
+    start_date: str = "",
+    end_date: str = "",
+    model: str = "all"
+):
     try:
-        result = await get_brand_sov_db(prompt_id, brand)
-        return {"data": {"sov": result}}
+        result = clickhouse.get_brand_sov(
+            brand=brand,
+            brand_report_id=brand_report_id,
+            start_date=start_date,
+            end_date=end_date,
+            model=model
+        )
+        return {"data": {"sov": result.get("data", 0.0)}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
 
 
 # Brand Coverage
 @router.get("/coverage")
-async def get_brand_coverage(prompt_id: str, brand: str):
+def brand_coverage(
+    brand: str,
+    brand_report_id: str,
+    start_date: str = "",
+    end_date: str = "",
+    model: str = "all"
+):
     try:
-        result = await get_brand_coverage_db(prompt_id, brand)
-        return {"data": {"coverage": result}}
+        result = clickhouse.get_brand_coverage(
+            brand=brand,
+            brand_report_id=brand_report_id,
+            start_date=start_date,
+            end_date=end_date,
+            model=model
+        )
+        return {"data": {"coverage": result.get("data", 0.0)}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
 
 
 # Brand Position
 @router.get("/position")
-async def get_brand_position(prompt_id: str, brand: str):
+def brand_position(
+    brand: str,
+    brand_report_id: str,
+    start_date: str = "",
+    end_date: str = "",
+    model: str = "all"
+):
     try:
-        result = await get_brand_position_db(prompt_id, brand)
-        return {"data": {"position": result}}
+        result = clickhouse.get_brand_position(
+            brand=brand,
+            brand_report_id=brand_report_id,
+            start_date=start_date,
+            end_date=end_date,
+            model=model
+        )
+        return {"data": {"position": result.get("data", 0.0)}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
 
 
 # Brand Ranking
 @router.get("/ranking")
-async def get_brand_ranking(prompt_id: str):
+def brand_ranking(
+    start_date: str = "",
+    end_date: str = "",
+    model: str = "all"
+):
     try:
-        result = await get_brand_ranking_db(prompt_id)
-        return {"data": {"ranking": result}}
+        result = clickhouse.get_brand_ranking(
+            start_date=start_date,
+            end_date=end_date,
+            model=model
+        )
+        return {"data": {"ranking": result or []}}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error: {e}"
+)
