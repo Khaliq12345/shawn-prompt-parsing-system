@@ -26,8 +26,7 @@ class ClickHouse:
         end_date: str,
         model: str = "all",
         start_date: str = "",
-    ) -> Optional[dict]:
-        """Get total mention based on selected date"""
+    ) -> dict:
         start_date = start_date if start_date else self.today
         stmt = f"""
             SELECT SUM(mention_count) AS total_mentions, toDateTime(date) AS date
@@ -40,8 +39,8 @@ class ClickHouse:
         """
         query = self.client.query(stmt)
         if not query.row_count:
-            return None
-        return {"data": query.first_item.get("total_mentions")}
+            return {"data": 0}
+        return {"data": query.first_item.get("total_mentions") or 0}
 
     def get_brand_sov(
         self,
@@ -50,8 +49,7 @@ class ClickHouse:
         end_date: str,
         model: str = "all",
         start_date: str = "",
-    ) -> Optional[dict]:
-        """Get the brand shared of voice based on selected date"""
+    ) -> dict:
         start_date = start_date if start_date else self.today
         stmt = f"""
             SELECT 
@@ -65,8 +63,8 @@ class ClickHouse:
         """
         query = self.client.query(stmt)
         if not query.row_count:
-            return None
-        return {"data": query.first_item.get("sov")}
+            return {"data": 0.0}
+        return {"data": query.first_item.get("sov") or 0.0}
 
     def get_brand_coverage(
         self,
@@ -75,11 +73,9 @@ class ClickHouse:
         end_date: str,
         model: str = "all",
         start_date: str = "",
-    ) -> Optional[dict]:
-        """Get the brand coverage percentage"""
+    ) -> dict:
         start_date = start_date if start_date else self.today
 
-        # Total lignes dans l'échantillon
         total_stmt = f"""
             SELECT COUNT(*) AS total_rows
             FROM default.brands
@@ -87,8 +83,6 @@ class ClickHouse:
               AND date <= '{start_date}' AND date >= '{end_date}'
               {"AND model = '" + model + "'" if model != "all" else ""}
         """
-
-        # Lignes où mention_count >= 1 pour la marque
         mention_stmt = f"""
             SELECT COUNT(*) AS mentioned_rows
             FROM default.brands
@@ -99,13 +93,10 @@ class ClickHouse:
               {"AND model = '" + model + "'" if model != "all" else ""}
         """
 
-        total = self.client.query(total_stmt).first_item.get("total_rows")
-        mentioned = self.client.query(mention_stmt).first_item.get("mentioned_rows")
+        total = self.client.query(total_stmt).first_item.get("total_rows") or 0
+        mentioned = self.client.query(mention_stmt).first_item.get("mentioned_rows") or 0
 
-        if total == 0:
-            return None
-
-        coverage = (mentioned / total) * 100
+        coverage = (mentioned / total) * 100 if total > 0 else 0.0
         return {"data": coverage}
 
     def get_brand_position(
@@ -115,10 +106,8 @@ class ClickHouse:
         end_date: str,
         model: str = "all",
         start_date: str = "",
-    ) -> Optional[dict]:
-        """Get the brand position"""
+    ) -> dict:
         start_date = start_date if start_date else self.today
-
         stmt = f"""
             SELECT 
                 SUM(position) AS sum_positions,
@@ -130,20 +119,19 @@ class ClickHouse:
               AND date <= '{start_date}' AND date >= '{end_date}'
               {"AND model = '" + model + "'" if model != "all" else ""}
         """
-
         result = self.client.query(stmt).first_item
         sum_positions = result.get("sum_positions") or 0
         sum_mentions = result.get("sum_mentions") or 0
 
-        if sum_mentions == 0:
-            return None
-
-        position = (sum_positions / sum_mentions) * 100
+        position = (sum_positions / sum_mentions) * 100 if sum_mentions > 0 else 0.0
         return {"data": position}
 
-    def get_brand_ranking(self) -> Optional[list]:
-        """Get ranking of all brands by mention_count (with ties, standard competition ranking)"""
-        
+    def get_brand_ranking(
+        self,
+        start_date: str = "",
+        end_date: str = "",
+        model: str = "all"
+    ) -> list:
         stmt = """
             SELECT 
                 brand,
@@ -152,25 +140,22 @@ class ClickHouse:
             GROUP BY brand
             ORDER BY total_mentions DESC
         """
-
         query = self.client.query(stmt)
         if not query.row_count:
-            return None
+            return []
 
         results = query.named_results()
         ranking = []
 
         prev_mentions = None
         rank = 0
-        skip = 1  # nombre de marques ayant le même rang
+        skip = 1
 
         for row in results:
             mentions = row["total_mentions"] or 0
             if mentions == prev_mentions:
-                # même nombre de mentions → même rang
                 skip += 1
             else:
-                # nouveau nombre → rang = rang précédent + nombre de doublons
                 rank += skip
                 skip = 1
             ranking.append({
@@ -192,9 +177,6 @@ if __name__ == "__main__":
     sov = clickHouse.get_brand_sov(
         "Nike", "br_016", end_date="2025-09-01", model="ChatGPT"
     )
-    print("Mentions:", mentions)
-    print("Share of Voice:", sov)
-
     coverage = clickHouse.get_brand_coverage(
         "Nike", "br_016", end_date="2025-09-01", model="ChatGPT"
     )
@@ -203,6 +185,8 @@ if __name__ == "__main__":
     )
     ranking = clickHouse.get_brand_ranking()
 
-    print("Brand Ranking Dictionary:", ranking)
+    print("Mentions:", mentions)
+    print("Share of Voice:", sov)
     print("Brand Coverage:", coverage)
     print("Brand Position:", position)
+    print("Brand Ranking Dictionary:", ranking)
