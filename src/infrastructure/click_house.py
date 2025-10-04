@@ -102,29 +102,47 @@ class ClickHouse:
     def get_brand_position(
         self,
         brand: str,
-        brand_report_id: str,
-        end_date: str,
-        model: str = "all",
+        brand_report_id: str = "",
         start_date: str = "",
+        end_date: str = "",
+        model: str = "all"
     ) -> dict:
-        start_date = start_date if start_date else self.today
-        stmt = f"""
-            SELECT 
-                SUM(position) AS sum_positions,
-                SUM(mention_count) AS sum_mentions
-            FROM default.brands
-            WHERE brand = '{brand}'
-              AND brand_report_id = '{brand_report_id}'
-              AND mention_count >= 1
-              AND date <= '{start_date}' AND date >= '{end_date}'
-              {"AND model = '" + model + "'" if model != "all" else ""}
-        """
-        result = self.client.query(stmt).first_item
-        sum_positions = result.get("sum_positions") or 0
-        sum_mentions = result.get("sum_mentions") or 0
+        """Calcule la position relative d'une marque dans l'échantillon filtré en pourcentage."""
 
-        position = (sum_positions / sum_mentions) * 100 if sum_mentions > 0 else 0.0
+        # Construction des filtres SQL
+        where_clauses = ["mention_count >= 1"]
+        if brand_report_id:
+            where_clauses.append(f"brand_report_id = '{brand_report_id}'")
+        if start_date:
+            where_clauses.append(f"date >= '{start_date}'")
+        if end_date:
+            where_clauses.append(f"date <= '{end_date}'")
+        if model != "all":
+            where_clauses.append(f"model = '{model}'")
+        
+        where_sql = " AND ".join(where_clauses)
+
+        # Somme des positions de la marque
+        brand_stmt = f"""
+            SELECT SUM(position) AS brand_sum_positions
+            FROM default.brands
+            WHERE brand = '{brand}' AND {where_sql}
+        """
+        brand_sum_positions = self.client.query(brand_stmt).first_item.get("brand_sum_positions") or 0
+
+        # Somme des positions de toutes les marques dans l'échantillon filtré
+        total_stmt = f"""
+            SELECT SUM(position) AS total_sum_positions
+            FROM default.brands
+            WHERE {where_sql}
+        """
+        total_sum_positions = self.client.query(total_stmt).first_item.get("total_sum_positions") or 0
+
+        # Calcul de la position relative en pourcentage
+        position = (brand_sum_positions / total_sum_positions) * 100 if total_sum_positions > 0 else 0.0
+
         return {"data": position}
+    
 
     def get_brand_ranking(
             self,
