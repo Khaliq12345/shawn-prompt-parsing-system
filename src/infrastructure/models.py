@@ -12,7 +12,7 @@ class Sentiments(SQLModel, table=True):
     negative_phrase: list[str] = Field(sa_type=JSON)
 
 
-class Citation(SQLModel, table=True):
+class Citations(SQLModel, table=True):
     id: int = Field(primary_key=True)
     brand_report_id: str
     date: str
