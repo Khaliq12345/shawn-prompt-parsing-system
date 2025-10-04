@@ -5,7 +5,7 @@ from src.infrastructure.database import (
 )
 from src.infrastructure.taskiq_app import run_llm_task
 
-router = APIRouter(prefix="", responses={404: {"description": "Not found"}})
+router = APIRouter(responses={404: {"description": "Not found"}})
 
 
 # Start and record BrandMentions
@@ -36,4 +36,3 @@ async def get_pricess_status(prompt_id: str, process_id: str):
         }
     except Exception as e:
         raise HTTPException(500, detail=str(e))
-

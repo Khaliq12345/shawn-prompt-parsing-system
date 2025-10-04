@@ -2,9 +2,9 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Security, Depends
 from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.routes.llm_route import router as llm_router
-from src.api.routes.logs import router as logs_router
-from src.api.routes.metrics import router as metrics_router
+from src.api.v1.llm import router as llm_router
+from src.api.v1.logs import router as logs_router
+from src.api.v1.metrics import router as metrics_router
 from src.config.config import APP_PORT, ENV, API_KEY
 from src.infrastructure.database import create_db_and_tables, dispose_engine
 
@@ -38,9 +38,9 @@ app.add_middleware(
 )
 
 # Routes
-app.include_router(prefix="/api/llm", router=llm_router, tags=["LLM"])
-app.include_router(prefix="/api/logs", router=logs_router, tags=["LOGS"])
-app.include_router(prefix="/api/metrics", router=metrics_router, tags=["METRICS"])
+app.include_router(prefix="/api", router=llm_router, tags=["LLM"])
+app.include_router(prefix="/api", router=logs_router, tags=["LOGS"])
+app.include_router(prefix="/api", router=metrics_router, tags=["METRICS"])
 
 
 def start_app():

@@ -256,8 +256,6 @@ async def get_brand_ranking_db(prompt_id: str):
             skip = 0
         else:
             skip += 1
-        ranking.append(
-            {"brand": brand, "mention_count": count, "rank": current_rank}
-        )
+        ranking.append({"brand": brand, "mention_count": count, "rank": current_rank})
         last_count = count
     return ranking

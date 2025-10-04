@@ -8,11 +8,13 @@ from src.infrastructure.database import (
     get_brand_sov_db,
 )
 
-router = APIRouter(prefix="", responses={404: {"description": "Not found"}})
+router = APIRouter(
+    prefix="/report/metrics", responses={404: {"description": "Not found"}}
+)
 
 
 # Brand Mentions
-@router.get("/brand-mentions")
+@router.get("/mentions")
 async def get_brand_mentions(prompt_id: str, brand: str):
     try:
         result = await get_brand_mentions_db(prompt_id, brand)
@@ -22,7 +24,7 @@ async def get_brand_mentions(prompt_id: str, brand: str):
 
 
 # Brand Share of Voice
-@router.get("/brand-share-of-voice")
+@router.get("/share-of-voice")
 async def get_brand_sov(prompt_id: str, brand: str):
     try:
         result = await get_brand_sov_db(prompt_id, brand)
@@ -32,7 +34,7 @@ async def get_brand_sov(prompt_id: str, brand: str):
 
 
 # Brand Coverage
-@router.get("/brand-coverage")
+@router.get("/coverage")
 async def get_brand_coverage(prompt_id: str, brand: str):
     try:
         result = await get_brand_coverage_db(prompt_id, brand)
@@ -42,7 +44,7 @@ async def get_brand_coverage(prompt_id: str, brand: str):
 
 
 # Brand Position
-@router.get("/brand-position")
+@router.get("/position")
 async def get_brand_position(prompt_id: str, brand: str):
     try:
         result = await get_brand_position_db(prompt_id, brand)
@@ -52,11 +54,10 @@ async def get_brand_position(prompt_id: str, brand: str):
 
 
 # Brand Ranking
-@router.get("/brand-ranking")
+@router.get("/ranking")
 async def get_brand_ranking(prompt_id: str):
     try:
         result = await get_brand_ranking_db(prompt_id)
         return {"data": {"ranking": result}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error: {e}")
-

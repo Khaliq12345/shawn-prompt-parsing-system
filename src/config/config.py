@@ -25,3 +25,7 @@ ENV = os.getenv("ENV", "dev")
 APP_PORT = int(os.getenv("APP_PORT", 8000))
 # API KEY
 API_KEY = os.getenv("API_KEY")
+# Click House
+CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST")
+CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
+CLICKHOUSE_USER = os.getenv("CLICKHOUSE_USER")
