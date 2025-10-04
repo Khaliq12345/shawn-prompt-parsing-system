@@ -99,12 +99,11 @@ class ClickHouse:
               {"AND model = '" + model + "'" if model != "all" else ""}
         """
 
-        total = self.client.query(total_stmt).first_item.get("total_rows")
-        mentioned = self.client.query(mention_stmt).first_item.get("mentioned_rows")
-
-        if total == 0:
-            return None
-
+        total = self.client.query(total_stmt).first_item.get("total_rows") or 0
+        mentioned = (
+            self.client.query(mention_stmt).first_item.get("mentioned_rows")
+            or 0
+        )
         coverage = (mentioned / total) * 100
         return {"data": coverage}
 
@@ -143,7 +142,7 @@ class ClickHouse:
 
     def get_brand_ranking(self) -> Optional[list]:
         """Get ranking of all brands by mention_count (with ties, standard competition ranking)"""
-        
+
         stmt = """
             SELECT 
                 brand,
@@ -173,11 +172,13 @@ class ClickHouse:
                 # nouveau nombre → rang = rang précédent + nombre de doublons
                 rank += skip
                 skip = 1
-            ranking.append({
-                "rank": rank,
-                "brand_name": row["brand"],
-                "mention_count": mentions
-            })
+            ranking.append(
+                {
+                    "rank": rank,
+                    "brand_name": row["brand"],
+                    "mention_count": mentions,
+                }
+            )
             prev_mentions = mentions
 
         return ranking
