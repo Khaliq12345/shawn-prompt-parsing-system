@@ -100,12 +100,14 @@ def brand_position(
 # Brand Ranking
 @router.get("/ranking")
 def brand_ranking(
+    brand_report_id = "",
     start_date: str = "",
     end_date: str = "",
     model: str = "all"
 ):
     try:
         result = clickhouse.get_brand_ranking(
+            brand_report_id=brand_report_id,
             start_date=start_date,
             end_date=end_date,
             model=model

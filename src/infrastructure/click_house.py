@@ -127,19 +127,35 @@ class ClickHouse:
         return {"data": position}
 
     def get_brand_ranking(
-        self,
-        start_date: str = "",
-        end_date: str = "",
-        model: str = "all"
-    ) -> list:
-        stmt = """
+            self,
+            brand_report_id: str = "",
+            start_date: str = "",
+            end_date: str = "",
+            model: str = "all"
+        ) -> list:
+        # Construction de la clause WHERE selon les arguments fournis
+        where_clauses = []
+        if brand_report_id:
+            where_clauses.append(f"brand_report_id = '{brand_report_id}'")
+        if start_date:
+            where_clauses.append(f"date >= '{start_date}'")
+        if end_date:
+            where_clauses.append(f"date <= '{end_date}'")
+        if model != "all":
+            where_clauses.append(f"model = '{model}'")
+
+        where_sql = f"WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
+
+        stmt = f"""
             SELECT 
                 brand,
                 SUM(mention_count) AS total_mentions
             FROM default.brands
+            {where_sql}
             GROUP BY brand
             ORDER BY total_mentions DESC
         """
+
         query = self.client.query(stmt)
         if not query.row_count:
             return []
@@ -166,7 +182,6 @@ class ClickHouse:
             prev_mentions = mentions
 
         return ranking
-
 
 if __name__ == "__main__":
     clickHouse = ClickHouse()
