@@ -15,6 +15,8 @@ class AWSStorageAsync:
             aws_access_key_id=config.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=config.AWS_SECRET_ACCESS_KEY,
         ) as s3_client:
-            response = await s3_client.get_object(Bucket=self.bucket_name, Key=key)
+            response = await s3_client.get_object(
+                Bucket=self.bucket_name, Key=key
+            )
             content = await response["Body"].read()
             return content.decode("utf-8")
