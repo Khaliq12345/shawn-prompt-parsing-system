@@ -61,9 +61,7 @@ class LLMService(ContextDecorator, ABC):
         )
         return cleaned_markdown.strip()
 
-    def user_created_function(self, content: str) -> str:
-        # Fonction utilisateur créée, à implémenter selon vos besoins
-        return content  # Placeholder
+    
 
     def save_citation(self, citations: list[Citations]):
         """Sauvegarder les citations dans la base de données"""
@@ -77,8 +75,7 @@ class LLMService(ContextDecorator, ABC):
         if not content:
             return None
         clean_content = self.clean_markdown(content)
-        final_content = self.user_created_function(clean_content)
-        html_content = markdown2.markdown(final_content)
+        html_content = markdown2.markdown(clean_content)
         selector = BeautifulSoup(html_content, 'html.parser')
         links = [a.get('href') for a in selector.select('a') if a.get('href')]
         titles = [h.get_text() for h in selector.select('h1, h2, h3, h4, h5, h6')]

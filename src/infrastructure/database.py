@@ -18,7 +18,7 @@ class DataBase:
     def create_all_tables(self):
         SQLModel.metadata.create_all(self.engine)
 
-    def save_citations(self, citations: list[Citations]) -> None:
+    def save_citation(self, citations: list[Citations]) -> None:
         return None
 
 
