@@ -69,3 +69,20 @@ class DataBase:
         # Transformer en dict
         citations = [r.dict() for r in results]  # SQLModel fournit .dict()
         return citations
+
+    def get_sentiments(self, brand_report_id: str, date: str, model: str = "all") -> list[dict]:
+        """
+        Récupère les sentiments depuis la table Sentiments avec filtres optionnels.
+        """
+        with Session(self.engine) as session:
+            statement = select(Sentiments).where(
+                Sentiments.brand_report_id == brand_report_id,
+                Sentiments.date == date
+            )
+
+            if model.lower() != "all":
+                statement = statement.where(Sentiments.model == model)
+
+            results = session.exec(statement).all()
+        sentiments = [r.dict() for r in results]
+        return sentiments
