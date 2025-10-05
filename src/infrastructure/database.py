@@ -30,20 +30,26 @@ class DataBase:
             session.add(output_report)
             session.commit()
     
-    def get_output_report(self, brand_report_id: str, date: str, model: str) -> None:
-        with Session(self.engine) as session:
-            statement = (
-                select(Output_Reports)
-                .where(Output_Reports.brand_report_id == brand_report_id)
-                .where(Output_Reports.date == date)
-                .where(Output_Reports.model == model)
-            )
-            result = session.exec(statement).first()
+def get_report_outputs(self, brand_report_id: str, date: str, model: str) -> dict | None:
+    """
+    Récupère snapshot et markdown d'un rapport depuis la base.
+    Le filtre `model` est appliqué seulement si model != "all".
+    """
+    with Session(self.engine) as session:
+        statement = select(Output_Reports).where(
+            Output_Reports.brand_report_id == brand_report_id,
+            Output_Reports.date == date
+        )
 
-            if not result:
-                return None
+        if model.lower() != "all":
+            statement = statement.where(Output_Reports.model == model)
 
-            return {
-                "snapshot": result.snapshot,
-                "markdown": result.markdown
-            }
+        result = session.exec(statement).first()
+
+        if not result:
+            return None
+
+        return {
+            "snapshot": result.snapshot,
+            "markdown": result.markdown
+        }
