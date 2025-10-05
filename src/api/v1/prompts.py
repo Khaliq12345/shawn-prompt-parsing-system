@@ -47,21 +47,9 @@ def get_outputs(
     }
     
 
-# Paramètres communs pour citations
-def common_citation_parameters(
-    brand_report_id: str = Query(..., description="ID du rapport de la marque"),
-    date: str = Query(..., description="Date du rapport au format YYYY-MM-DD"),
-    model: str = Query("all", description="Nom du modèle (optionnel)")
-):
-    return {
-        "brand_report_id": brand_report_id,
-        "date": date,
-        "model": model,
-    }
-
 @router.get("/citations")
 def get_citations(
-    arguments: Annotated[dict, Depends(common_citation_parameters)],
+    arguments: Annotated[dict, Depends(common_parameters)],
     db: Annotated[DataBase, Depends(DataBase)]
 ):
     """
@@ -78,3 +66,25 @@ def get_citations(
 
     # Retourner les citations sous forme de dict simple
     return {"citations": citations}
+
+@router.get("/sentiments")
+def get_sentiments(
+    arguments: Annotated[dict, Depends(common_parameters)],
+    db: Annotated[DataBase, Depends(DataBase)]
+):
+    sentiments = db.get_sentiments(
+        arguments["brand_report_id"],
+        arguments["date"],
+        arguments["model"]
+    )
+
+    if not sentiments:
+        raise HTTPException(status_code=404, detail="No sentiments found")
+
+    # Ajouter le count des phrases positives et négatives
+    for sentiment in sentiments:
+        sentiment["count_positive_phrases"] = len(sentiment.get("positive_phrases", []))
+        sentiment["count_negative_phrases"] = len(sentiment.get("negative_phrases", []))
+
+    # Retourner les sentiments sous forme de dict simple
+    return {"sentiments": sentiments}
