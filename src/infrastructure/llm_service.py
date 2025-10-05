@@ -61,13 +61,17 @@ class LLMService(ContextDecorator, ABC):
         )
         return cleaned_markdown.strip()
 
+    def get_citation(self) -> list[Citations]:
+        """Récupérer les citations depuis la base de données"""
+        stmt = select(Citations).where(Citations.brand_report_id == self.brand_report_id)
+        return self.database.session.exec(stmt).all()
+
     
 
     def save_citation(self, citations: list[Citations]):
         """Sauvegarder les citations dans la base de données"""
-        for cit in citations:
-            self.database.session.add(cit)
-        self.database.session.commit()
+        self.database.save_citation(citations)
+        
 
     def main(self, s3_key: str) -> Optional[list[Citations]]:
         """Télécharger le contenu depuis S3, nettoyer, extraire liens/titres et sauvegarder"""
@@ -160,15 +164,17 @@ class LLMService(ContextDecorator, ABC):
 if __name__ == "__main__":
     s3_key = "perplexity/1758452292/output.txt"
     llm_service = LLMService("prompt_12345", "2023-01-01", "model_name", "brand_name")
-    output = llm_service.main(s3_key)
-    if output:
-        for cit in output:
-            print(f"Citation: rank={cit.rank}, title={cit.title}, domain={cit.domain}, url={cit.norm_url}")
+    
+    # Extraire et sauvegarder les citations
+    saved_citations = llm_service.main(s3_key)
+    if saved_citations:
+        print(f"{len(saved_citations)} citations ont été extraites et sauvegardées.")
     else:
-        print("No citations found or content not available.")
-    print("Checking database...")
-    stmt = select(Citations).where(Citations.brand_report_id == "prompt_12345")
-    db_citations = llm_service.database.session.exec(stmt).all()
-    print(f"Found {len(db_citations)} citations in database.")
+        print("Aucune citation trouvée ou contenu non disponible.")
+
+    # Vérifier la base de données en utilisant la nouvelle fonction get_citation
+    print("\nVérification de la base de données avec get_citation...")
+    db_citations = llm_service.get_citation()
+    print(f"Trouvé {len(db_citations)} citations dans la base de données pour le rapport id 'prompt_12345'.")
     for cit in db_citations:
         print(f"DB Citation: id={cit.id}, rank={cit.rank}, title={cit.title}, domain={cit.domain}, url={cit.norm_url}")

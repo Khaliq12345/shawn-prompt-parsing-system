@@ -19,7 +19,10 @@ class DataBase:
         SQLModel.metadata.create_all(self.engine)
 
     def save_citation(self, citations: list[Citations]) -> None:
-        return None
+        """Sauvegarder les citations dans la base de données"""
+        for cit in citations:
+            self.session.add(cit)
+        self.session.commit()
 
 
 # # Save a BrandMention
