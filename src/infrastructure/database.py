@@ -30,26 +30,42 @@ class DataBase:
             session.add(output_report)
             session.commit()
     
-def get_report_outputs(self, brand_report_id: str, date: str, model: str) -> dict | None:
-    """
-    Récupère snapshot et markdown d'un rapport depuis la base.
-    Le filtre `model` est appliqué seulement si model != "all".
-    """
-    with Session(self.engine) as session:
-        statement = select(Output_Reports).where(
-            Output_Reports.brand_report_id == brand_report_id,
-            Output_Reports.date == date
-        )
+    def get_report_outputs(self, brand_report_id: str, date: str, model: str) -> dict | None:
+        """
+        Récupère snapshot et markdown d'un rapport depuis la base.
+        Le filtre `model` est appliqué seulement si model != "all".
+        """
+        with Session(self.engine) as session:
+            statement = select(Output_Reports).where(
+                Output_Reports.brand_report_id == brand_report_id,
+                Output_Reports.date == date
+            )
 
-        if model.lower() != "all":
-            statement = statement.where(Output_Reports.model == model)
+            if model.lower() != "all":
+                statement = statement.where(Output_Reports.model == model)
 
-        result = session.exec(statement).first()
+            result = session.exec(statement).first()
 
-        if not result:
-            return None
+            if not result:
+                return None
 
-        return {
-            "snapshot": result.snapshot,
-            "markdown": result.markdown
-        }
+            return {
+                "snapshot": result.snapshot,
+                "markdown": result.markdown
+            }
+
+    def get_citations(self, brand_report_id: str, date: str, model: str = "all") -> list[dict]:
+        with Session(self.engine) as session:
+            statement = select(Citations).where(
+                Citations.brand_report_id == brand_report_id,
+                Citations.date == date
+            )
+
+            if model.lower() != "all":
+                statement = statement.where(Citations.model == model)
+
+            results = session.exec(statement).all()
+
+        # Transformer en dict
+        citations = [r.dict() for r in results]  # SQLModel fournit .dict()
+        return citations

@@ -1,6 +1,9 @@
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from src.infrastructure.database import DataBase
-from src.infrastructure.aws_storage import get_presigned_url  # fonction pour générer l'URL S3
+from src.infrastructure.aws_storage import AWSStorage
+
+aws_storage = AWSStorage(bucket_name="browser-outputs")
 
 router = APIRouter(
     prefix="/report/prompts",
@@ -34,12 +37,44 @@ def get_outputs(
 
     if not report:
         raise HTTPException(status_code=404, detail="Output report not found")
-        
-    snapshot_url = get_presigned_url(report["snapshot"])
-    markdown_url = get_presigned_url(report["markdown"])
+
+    snapshot_url = aws_storage.get_presigned_url(report["snapshot"])
+    markdown_url = aws_storage.get_presigned_url(report["markdown"])
 
     return {
         "snapshot_url": snapshot_url,
         "markdown": markdown_url
     }
     
+
+# Paramètres communs pour citations
+def common_citation_parameters(
+    brand_report_id: str = Query(..., description="ID du rapport de la marque"),
+    date: str = Query(..., description="Date du rapport au format YYYY-MM-DD"),
+    model: str = Query("all", description="Nom du modèle (optionnel)")
+):
+    return {
+        "brand_report_id": brand_report_id,
+        "date": date,
+        "model": model,
+    }
+
+@router.get("/citations")
+def get_citations(
+    arguments: Annotated[dict, Depends(common_citation_parameters)],
+    db: Annotated[DataBase, Depends(DataBase)]
+):
+    """
+    Récupère les citations pour un rapport donné.
+    """
+    citations = db.get_citations(
+        arguments["brand_report_id"],
+        arguments["date"],
+        arguments["model"]
+    )
+
+    if not citations:
+        raise HTTPException(status_code=404, detail="No citations found")
+
+    # Retourner les citations sous forme de dict simple
+    return {"citations": citations}
