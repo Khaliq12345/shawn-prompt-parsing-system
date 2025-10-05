@@ -9,9 +9,9 @@ router = APIRouter(
 )
 
 
-def get_today() -> str:
-    """Get today's date"""
-    date_node = dateparser.parse("Last 7 days")
+def get_date() -> str:
+    """Get date"""
+    date_node = dateparser.parse("7 days Ago")
     if date_node:
         return date_node.strftime("%Y-%m-%d %H:%M:%S")
     return ""
@@ -20,10 +20,16 @@ def get_today() -> str:
 def common_parameters(
     brand: str,
     brand_report_id: str,
-    start_date: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    end_date: str = get_today(),
+    end_date: str = "",
+    start_date: str = "",
     model: str = "all",
 ):
+    end_date = end_date if end_date else get_date()
+    start_date = (
+        start_date
+        if start_date
+        else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
     return {
         "brand": brand,
         "brand_report_id": brand_report_id,
@@ -37,7 +43,7 @@ def common_parameters(
 @router.get("/mentions")
 def brand_mentions(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, ClickHouse],
+    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
 ):
     try:
         result = clickhouse.get_brand_mention(
@@ -56,7 +62,7 @@ def brand_mentions(
 @router.get("/share-of-voice")
 def brand_sov(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, ClickHouse],
+    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
 ):
     try:
         result = clickhouse.get_brand_sov(
@@ -75,7 +81,7 @@ def brand_sov(
 @router.get("/coverage")
 def brand_coverage(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, ClickHouse],
+    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
 ):
     try:
         result = clickhouse.get_brand_coverage(
@@ -94,7 +100,7 @@ def brand_coverage(
 @router.get("/position")
 def brand_position(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, ClickHouse],
+    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
 ):
     try:
         result = clickhouse.get_brand_position(
@@ -113,7 +119,7 @@ def brand_position(
 @router.get("/ranking")
 def brand_ranking(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, ClickHouse],
+    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
 ):
     try:
         result = clickhouse.get_brand_ranking(

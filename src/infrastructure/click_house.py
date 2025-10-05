@@ -31,8 +31,9 @@ class ClickHouse:
         model: str,
         start_date: str,
     ) -> dict:
+        print(start_date, end_date)
         stmt = f"""
-            SELECT SUM(mention_count) AS total_mentions, toDateTime(date) AS date
+            SELECT SUM(mention_count) AS total_mentions
             FROM default.brands
             WHERE brand = '{brand}'
               AND brand_report_id = '{brand_report_id}'
@@ -82,8 +83,8 @@ class ClickHouse:
                 countIf(mention_count >= 1 AND brand = '{brand}') AS mentioned_rows
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
-              AND date >= '{start_date}' AND date <= '{end_date}'
-            {"AND model = '" + model + "'" if model != "all" else ""}
+                AND date <= '{start_date}' AND date >= '{end_date}'
+                {"AND model = '" + model + "'" if model != "all" else ""}
         """
 
         result = self.client.query(stmt).first_item
@@ -113,8 +114,9 @@ class ClickHouse:
         result = self.client.query(stmt).first_item
         all_positions = result.get("all_position") or 0
         brand_position = result.get("brand_position") or 0
+        print(all_positions, brand_position)
 
-        position = (brand_position / all_positions) * 100
+        position = brand_position / all_positions
         return {"data": position}
 
     def get_brand_ranking(

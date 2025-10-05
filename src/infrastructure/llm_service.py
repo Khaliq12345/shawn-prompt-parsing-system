@@ -105,7 +105,7 @@ class LLMService:
         for result in results:
             parsed_results.append(
                 {
-                    "brand_report_id": result.brand_report_id,
+                    "brand_report_id": self.brand_report_id,
                     "brand": result.brand,
                     "mention_count": result.mention_count,
                     "position": result.position,
@@ -215,7 +215,6 @@ class LLMService:
 
 if __name__ == "__main__":
     llm_service = LLMService(
-        "br_12345", "2023-01-01", "Chatgpt", "Nike", "chatgpt/1758754781"
+        "br_12345", "2025-10-05", "Chatgpt", "Nike", "chatgpt/1758754781"
     )
-    llm_service.database.create_all_tables()
     llm_service.main()

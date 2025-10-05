@@ -43,9 +43,6 @@ class Output_Reports(SQLModel, table=True):
 
 
 class Brand_Metrics(BaseModel):
-    brand_report_id: str
-    date: str
-    model: str
     brand: str
     mention_count: int
     position: int
