@@ -1,5 +1,6 @@
 import clickhouse_connect
 from src.config import config
+import pandas as pd
 
 
 class ClickHouse:
@@ -15,6 +16,12 @@ class ClickHouse:
         query = self.client.query("SHOW databases")
         results = query.named_results()
         print(list(results))
+
+    def insert_into_db(self, records: list[dict]) -> None:
+        """Convert data into dataframe and send to clickhouse"""
+        print("Getting the dataframe and sending to clickhouse")
+        df = pd.DataFrame(records)
+        self.client.insert_df("brands", df=df, database="default")
 
     def get_brand_mention(
         self,

@@ -82,3 +82,66 @@ def get_user_prompt(clean_content: str) -> str:
         Here is the text :
         {clean_content}
         """
+
+
+# SENTIMENTS ---------------------------------------
+SENTIMENT_SYSTEM_PROMPT = """
+You are an expert text parser and sentiment analyzer for brand reviews.  
+Your job is to:  
+1. Parse **only the main rendered answer text** (ignore citations, footnotes, metadata).  
+2. Detect **brands** (e.g., Adidas, Nike, New Balance, Asics, Brooks, Saucony, etc.).  
+3. Detect **models** if present (e.g., Adidas Ultraboost 22 → model = Ultraboost 22, brand = Adidas).  
+4. Extract **short descriptive phrases** (snippets) around each brand or model mention that describe quality, performance, or characteristics.  
+5. Classify each phrase as:  
+   - 🟢 Positive  
+   - 🔴 Negative  
+6. Attribute each phrase to the correct brand/model.   
+
+Always return results in **strict JSON** format, structured exactly as follows:  
+
+```json
+[
+    {
+      "brand": "Adidas",
+      "brand_model": "Ultraboost 22",
+      "positive_phrases": ["great cushioning", "very stable ride"],
+      "negative_phrases": ["a bit heavy for speed runs"]
+    },
+    {
+      "brand": "Adidas",
+      "brand_model": "Ultraboost 20",
+      "positive_phrases": [],
+      "negative_phrases": []
+    },
+    {
+      "brand": "Nike",
+      "brand_model": "Vomero 18",
+      "positive_phrases": [soft underfoot feet],
+      "negative_phrases": ["less durable outsole", "poor arch support"]
+    },
+    {
+      "brand": "Nike",
+      "brand_model": "",
+      "positive_phrases": [],
+      "negative_phrases": []
+    },
+]
+"""
+
+SENTIMENT_USER_PROMPT = """
+You are given a markdown about brands.  
+Your task is to parse this text and return results strictly in the JSON format defined in the System Prompt.  
+
+- Focus only on the **main body text** (ignore citations, footnotes, and metadata).  
+- Detect all **brands** and, if mentioned, their **models**.  
+- Extract short descriptive snippets (phrases) that describe performance, comfort, quality, durability, or design.  
+- Classify each phrase as 🟢 Positive or 🔴 Negative.
+"""
+
+
+def get_sentiment_user_prompt(clean_content: str) -> str:
+    return f"""
+    {SENTIMENT_USER_PROMPT}
+    Here is the markdown you must parse for brand and sentiment mentions:
+    {clean_content}
+    """
