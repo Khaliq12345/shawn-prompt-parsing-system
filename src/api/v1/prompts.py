@@ -4,6 +4,7 @@ from src.infrastructure.database import DataBase
 from src.infrastructure.aws_storage import AWSStorage
 from typing import Optional
 
+
 aws_storage = AWSStorage(bucket_name="browser-outputs")
 
 router = APIRouter(
@@ -27,12 +28,18 @@ def common_parameters(
 @router.get("/outputs")
 def get_outputs(
     arguments: Annotated[dict, Depends(common_parameters)],
-    db: Annotated[DataBase, Depends(DataBase)]
+    db: Annotated[DataBase, Depends(DataBase)],
+    max_date: str = "7 days ago"  # Valeur par défaut pour récupérer les dates des 7 derniers jours
 ):
     """
     Récupère le snapshot et le markdown d'un rapport depuis la base.
-    Retourne les URLs complètes via AWS S3.
+    Retourne les URLs complètes via AWS S3, ainsi que toutes les dates disponibles.
+
+    Paramètres :
+        max_date (str, optionnel) : limite inférieure pour récupérer les dates disponibles.
+                                     Ex: "7 days ago" ou "2023-01-01"
     """
+    # Récupérer le rapport
     report = db.get_report_outputs(
         arguments["brand_report_id"], arguments["date"], arguments["model"]
     )
@@ -40,15 +47,20 @@ def get_outputs(
     if not report:
         raise HTTPException(status_code=404, detail="Output report not found")
 
+    # Générer les URLs AWS S3
     snapshot_url = aws_storage.get_presigned_url(report["snapshot"])
     markdown_url = aws_storage.get_presigned_url(report["markdown"])
 
+    # Récupérer toutes les dates uniques disponibles selon max_date
+    available_dates = db.get_report_dates(max_dates=max_date)
+
     return {
         "snapshot_url": snapshot_url,
-        "markdown": markdown_url
+        "markdown": markdown_url,
+        "available_dates": available_dates
     }
-    
 
+    
 @router.get("/citations")
 def get_citations(
     arguments: Annotated[dict, Depends(common_parameters)],

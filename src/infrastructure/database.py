@@ -2,6 +2,8 @@ from sqlmodel import Session, create_engine, select
 from src.infrastructure.models import Output_Reports, SQLModel, Citations, Sentiments
 from src.config import config
 from typing import Optional
+import dateparser
+from datetime import datetime, timedelta, date
 
 class DataBase:
     def __init__(self) -> None:
@@ -128,3 +130,26 @@ class DataBase:
         # Transformer en dictionnaire
         sentiments = [r.dict() for r in results]
         return sentiments
+
+    def get_report_dates(self, max_dates: str = "7 days ago") -> list[str]:
+        with Session(self.engine) as session:
+            today = datetime.today().date()
+            start_date_node = dateparser.parse(max_dates)
+            start_date = start_date_node.date() if start_date_node else today - timedelta(days=7)
+
+            statement = select(Output_Reports.date).where(
+                Output_Reports.date >= start_date
+            ).order_by(Output_Reports.date.desc())
+
+            results = session.exec(statement).all()  # Liste de dates ou strings
+
+            # Supprimer les doublons et trier
+            unique_dates = sorted(set(results), reverse=True)
+
+            # Si ce sont des dates, convertir en str, sinon juste retourner
+            unique_dates_str = [
+                d.strftime("%Y-%m-%d") if isinstance(d, (datetime, date)) else str(d)
+                for d in unique_dates
+            ]
+
+        return unique_dates_str
