@@ -2,6 +2,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from src.infrastructure.database import DataBase
 from src.infrastructure.aws_storage import AWSStorage
+from typing import Optional
 
 aws_storage = AWSStorage(bucket_name="browser-outputs")
 
@@ -10,11 +11,12 @@ router = APIRouter(
     responses={404: {"description": "Not found"}}
 )
 
+
 # Paramètres communs
 def common_parameters(
     brand_report_id: str = Query(..., description="ID du rapport de la marque"),
-    date: str = Query(..., description="Date du rapport au format YYYY-MM-DD"),
-    model: str = Query(..., description="Nom du modèle"),
+    date: Optional[str] = Query(None, description="Date du rapport au format YYYY-MM-DD (facultatif)"),
+    model: str = Query("all", description="Nom du modèle (par défaut 'all')"),
 ):
     return {
         "brand_report_id": brand_report_id,
@@ -86,5 +88,4 @@ def get_sentiments(
         sentiment["count_positive_phrases"] = len(sentiment.get("positive_phrases", []))
         sentiment["count_negative_phrases"] = len(sentiment.get("negative_phrases", []))
 
-    # Retourner les sentiments sous forme de dict simple
     return {"sentiments": sentiments}
