@@ -1,9 +1,16 @@
-from sqlmodel import Session, create_engine, select
-from src.infrastructure.models import Output_Reports, SQLModel, Citations, Sentiments
+import json
+from sqlmodel import Column, Session, create_engine, select
+from src.infrastructure.models import (
+    Output_Reports,
+    SQLModel,
+    Citations,
+    Sentiments,
+)
 from src.config import config
 from typing import Optional
 import dateparser
 from datetime import datetime, timedelta, date
+
 
 class DataBase:
     def __init__(self) -> None:
@@ -31,16 +38,20 @@ class DataBase:
         with Session(self.engine) as session:
             session.add(output_report)
             session.commit()
-    
-    def get_report_outputs(self, brand_report_id: str, date: Optional[str] = None, model: str = "all") -> dict | None:
-        with Session(self.engine) as session:
 
+    def get_report_outputs(
+        self,
+        brand_report_id: str,
+        date: Optional[str] = None,
+        model: str = "all",
+    ) -> dict | None:
+        with Session(self.engine) as session:
             # Si la date n'est pas fournie → prendre la plus récente
             if date is None:
                 latest_date = session.exec(
                     select(Output_Reports.date)
                     .where(Output_Reports.brand_report_id == brand_report_id)
-                    .order_by(Output_Reports.date.desc())
+                    .order_by(Column(Output_Reports.date).desc())
                 ).first()
 
                 if not latest_date:
@@ -50,7 +61,7 @@ class DataBase:
 
             statement = select(Output_Reports).where(
                 Output_Reports.brand_report_id == brand_report_id,
-                Output_Reports.date == date
+                Output_Reports.date == date,
             )
 
             if model.lower() != "all":
@@ -61,14 +72,15 @@ class DataBase:
             if not result:
                 return None
 
-            return {
-                "snapshot": result.snapshot,
-                "markdown": result.markdown
-            }
+            return {"snapshot": result.snapshot, "markdown": result.markdown}
 
-    def get_citations(self, brand_report_id: str, date: Optional[str] = None, model: str = "all") -> list[dict]:
+    def get_citations(
+        self,
+        brand_report_id: str,
+        date: Optional[str] = None,
+        model: str = "all",
+    ) -> list[dict]:
         with Session(self.engine) as session:
-
             # Si la date n'est pas fournie → prendre la plus récente
             if date is None:
                 latest_date = session.exec(
@@ -84,7 +96,7 @@ class DataBase:
 
             statement = select(Citations).where(
                 Citations.brand_report_id == brand_report_id,
-                Citations.date == date
+                Citations.date == date,
             )
 
             if model.lower() != "all":
@@ -94,14 +106,17 @@ class DataBase:
 
         return [r.dict() for r in results]
 
-
-    def get_sentiments(self, brand_report_id: str, date: Optional[str] = None, model: str = "all") -> list[dict]:
+    def get_sentiments(
+        self,
+        brand_report_id: str,
+        date: Optional[str] = None,
+        model: str = "all",
+    ) -> list[dict]:
         """
         Récupère les sentiments depuis la table Sentiments avec filtres optionnels.
         Si date est None, sélectionne automatiquement la plus récente.
         """
         with Session(self.engine) as session:
-
             # Si la date n'est pas fournie, récupérer la date la plus récente
             if date is None:
                 latest_date = session.exec(
@@ -118,7 +133,7 @@ class DataBase:
             # Construire la requête principale
             statement = select(Sentiments).where(
                 Sentiments.brand_report_id == brand_report_id,
-                Sentiments.date == date
+                Sentiments.date == date,
             )
 
             if model.lower() != "all":
@@ -128,18 +143,27 @@ class DataBase:
             results = session.exec(statement).all()
 
         # Transformer en dictionnaire
-        sentiments = [r.dict() for r in results]
+        # sentiments = [r.dict() for r i results]
+        sentiments = [
+            json.loads(result.model_dump_json()) for result in results
+        ]
         return sentiments
 
     def get_report_dates(self, max_dates: str = "7 days ago") -> list[str]:
         with Session(self.engine) as session:
             today = datetime.today().date()
             start_date_node = dateparser.parse(max_dates)
-            start_date = start_date_node.date() if start_date_node else today - timedelta(days=7)
+            start_date = (
+                start_date_node.date()
+                if start_date_node
+                else today - timedelta(days=7)
+            )
 
-            statement = select(Output_Reports.date).where(
-                Output_Reports.date >= start_date
-            ).order_by(Output_Reports.date.desc())
+            statement = (
+                select(Output_Reports.date)
+                .where(Column(Output_Reports.date) >= start_date)
+                .order_by(Output_Reports.date.desc())
+            )
 
             results = session.exec(statement).all()  # Liste de dates ou strings
 
@@ -148,7 +172,9 @@ class DataBase:
 
             # Si ce sont des dates, convertir en str, sinon juste retourner
             unique_dates_str = [
-                d.strftime("%Y-%m-%d") if isinstance(d, (datetime, date)) else str(d)
+                d.strftime("%Y-%m-%d")
+                if isinstance(d, (datetime, date))
+                else str(d)
                 for d in unique_dates
             ]
 

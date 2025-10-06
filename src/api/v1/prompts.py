@@ -8,15 +8,16 @@ from typing import Optional
 aws_storage = AWSStorage(bucket_name="browser-outputs")
 
 router = APIRouter(
-    prefix="/report/prompts",
-    responses={404: {"description": "Not found"}}
+    prefix="/report/prompts", responses={404: {"description": "Not found"}}
 )
 
 
 # Paramètres communs
 def common_parameters(
     brand_report_id: str = Query(..., description="ID du rapport de la marque"),
-    date: Optional[str] = Query(None, description="Date du rapport au format YYYY-MM-DD (facultatif)"),
+    date: Optional[str] = Query(
+        None, description="Date du rapport au format YYYY-MM-DD (facultatif)"
+    ),
     model: str = Query("all", description="Nom du modèle (par défaut 'all')"),
 ):
     return {
@@ -25,11 +26,12 @@ def common_parameters(
         "model": model,
     }
 
+
 @router.get("/outputs")
 def get_outputs(
     arguments: Annotated[dict, Depends(common_parameters)],
     db: Annotated[DataBase, Depends(DataBase)],
-    max_date: str = "7 days ago"  # Valeur par défaut pour récupérer les dates des 7 derniers jours
+    max_date: str = "7 days ago",
 ):
     """
     Récupère le snapshot et le markdown d'un rapport depuis la base.
@@ -57,22 +59,20 @@ def get_outputs(
     return {
         "snapshot_url": snapshot_url,
         "markdown": markdown_url,
-        "available_dates": available_dates
+        "available_dates": available_dates,
     }
 
-    
+
 @router.get("/citations")
 def get_citations(
     arguments: Annotated[dict, Depends(common_parameters)],
-    db: Annotated[DataBase, Depends(DataBase)]
+    db: Annotated[DataBase, Depends(DataBase)],
 ):
     """
     Récupère les citations pour un rapport donné.
     """
     citations = db.get_citations(
-        arguments["brand_report_id"],
-        arguments["date"],
-        arguments["model"]
+        arguments["brand_report_id"], arguments["date"], arguments["model"]
     )
 
     if not citations:
@@ -81,15 +81,14 @@ def get_citations(
     # Retourner les citations sous forme de dict simple
     return {"citations": citations}
 
+
 @router.get("/sentiments")
 def get_sentiments(
     arguments: Annotated[dict, Depends(common_parameters)],
-    db: Annotated[DataBase, Depends(DataBase)]
+    db: Annotated[DataBase, Depends(DataBase)],
 ):
     sentiments = db.get_sentiments(
-        arguments["brand_report_id"],
-        arguments["date"],
-        arguments["model"]
+        arguments["brand_report_id"], arguments["date"], arguments["model"]
     )
 
     if not sentiments:
