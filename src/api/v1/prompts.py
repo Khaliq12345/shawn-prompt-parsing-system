@@ -1,9 +1,7 @@
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from src.infrastructure.database import DataBase
 from src.infrastructure.aws_storage import AWSStorage
-from typing import Optional
-
 
 aws_storage = AWSStorage(bucket_name="browser-outputs")
 
@@ -11,14 +9,13 @@ router = APIRouter(
     prefix="/report/prompts", responses={404: {"description": "Not found"}}
 )
 
-
-# Paramètres communs
+# Shared query parameters
 def common_parameters(
-    brand_report_id: str = Query(..., description="ID du rapport de la marque"),
+    brand_report_id: str = Query(..., description="Brand report ID"),
     date: Optional[str] = Query(
-        None, description="Date du rapport au format YYYY-MM-DD (facultatif)"
+        None, description="Report date in YYYY-MM-DD format (optional)"
     ),
-    model: str = Query("all", description="Nom du modèle (par défaut 'all')"),
+    model: str = Query("all", description="Model name (default: 'all')"),
 ):
     return {
         "brand_report_id": brand_report_id,
@@ -34,14 +31,13 @@ def get_outputs(
     max_date: str = "7 days ago",
 ):
     """
-    Récupère le snapshot et le markdown d'un rapport depuis la base.
-    Retourne les URLs complètes via AWS S3, ainsi que toutes les dates disponibles.
+    Retrieve the snapshot and markdown of a report from the database.
+    Returns fully-qualified AWS S3 URLs, along with all available report dates.
 
-    Paramètres :
-        max_date (str, optionnel) : limite inférieure pour récupérer les dates disponibles.
-                                     Ex: "7 days ago" ou "2023-01-01"
+    Parameters:
+        max_date (str, optional): Lower bound for available report dates.
+                                  Example: "7 days ago" or "2023-01-01"
     """
-    # Récupérer le rapport
     report = db.get_report_outputs(
         arguments["brand_report_id"], arguments["date"], arguments["model"]
     )
@@ -49,11 +45,11 @@ def get_outputs(
     if not report:
         raise HTTPException(status_code=404, detail="Output report not found")
 
-    # Générer les URLs AWS S3
+    # Generate AWS S3 pre-signed URLs
     snapshot_url = aws_storage.get_presigned_url(report["snapshot"])
     markdown_url = aws_storage.get_presigned_url(report["markdown"])
 
-    # Récupérer toutes les dates uniques disponibles selon max_date
+    # Retrieve all unique available dates according to max_date
     available_dates = db.get_report_dates(max_dates=max_date)
 
     return {
@@ -69,7 +65,7 @@ def get_citations(
     db: Annotated[DataBase, Depends(DataBase)],
 ):
     """
-    Récupère les citations pour un rapport donné.
+    Retrieve citations for a given report.
     """
     citations = db.get_citations(
         arguments["brand_report_id"], arguments["date"], arguments["model"]
@@ -78,7 +74,6 @@ def get_citations(
     if not citations:
         raise HTTPException(status_code=404, detail="No citations found")
 
-    # Retourner les citations sous forme de dict simple
     return {"citations": citations}
 
 
@@ -87,6 +82,10 @@ def get_sentiments(
     arguments: Annotated[dict, Depends(common_parameters)],
     db: Annotated[DataBase, Depends(DataBase)],
 ):
+    """
+    Retrieve sentiment analysis results for a given report.
+    Adds helper counters for positive and negative phrases.
+    """
     sentiments = db.get_sentiments(
         arguments["brand_report_id"], arguments["date"], arguments["model"]
     )
@@ -94,7 +93,6 @@ def get_sentiments(
     if not sentiments:
         raise HTTPException(status_code=404, detail="No sentiments found")
 
-    # Ajouter le count des phrases positives et négatives
     for sentiment in sentiments:
         sentiment["count_positive_phrases"] = len(sentiment.get("positive_phrases", []))
         sentiment["count_negative_phrases"] = len(sentiment.get("negative_phrases", []))
