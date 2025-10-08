@@ -14,7 +14,6 @@ from src.infrastructure.prompt import (
 )
 import json
 
-# from src.infrastructure.redis_service import AsyncRedisBase, RedisLogHandler
 from src.infrastructure.models import (
     Brand_Metrics,
     Citations,
@@ -26,7 +25,6 @@ import markdown2
 from markdownify import markdownify as md
 from src.config import config
 from google.genai.types import GenerateContentConfig
-from datetime import datetime
 import logging
 from selectolax.parser import HTMLParser
 from src.infrastructure.click_house import ClickHouse
@@ -35,9 +33,17 @@ from dateparser import parse
 
 class LLMService:
     def __init__(
-        self, brand_report_id: str, date: str, model: str, brand: str, s3_key: str
+        self,
+        process_id: str,
+        brand_report_id: str,
+        date: str,
+        model: str,
+        brand: str,
+        s3_key: str,
+        logger: logging.Logger,
     ) -> None:
         # report ids
+        self.process_id = process_id
         self.brand_report_id = brand_report_id
         self.date = date
         self.model = model
@@ -50,23 +56,17 @@ class LLMService:
         self.bucket = config.BUCKET_NAME
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
         self.storage = AWSStorage(self.bucket)
-
-        # redis
-        # # redis_logger = Asyncis_logger)
-        # self.redis_handler.setFormatter(
-        #     logging.Formatter("[%(asctime)s] %(levelname)s - %(message)s")
-        # )
-        # self.logger.addHandler(self.redis_handler)
-        # content
         self.content = ""
         self.clean_content = ""
         # initialise db
         self.database = DataBase()
         # initialise clickhouse
         self.clickhouse = ClickHouse()
+        # initialise logger
+        self.logger = logger
 
     def clean_markdown(self, content: str) -> str:
-        print("Cleaning markdown")
+        self.logger.info("Cleaning Content")
         html_content = markdown2.markdown(content)
         cleaned_markdown = md(
             html_content,
@@ -84,8 +84,8 @@ class LLMService:
         return cleaned_markdown.strip()
 
     def extract_brand_mentions(self):
+        logging.info("- Starting the LLM prompt parsing system")
         parsed_results = []
-        print("- Starting the LLM prompt parsing system")
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
             contents=get_user_prompt(self.clean_content),
@@ -117,7 +117,9 @@ class LLMService:
 
     def save_brand_report_output(self):
         """Get the brand report outputs"""
+        self.logger.info("Getting and saving the brand report")
         output_report = Output_Reports(
+            id=self.process_id,
             brand_report_id=self.brand_report_id,
             date=self.date,
             model=self.model,
@@ -130,7 +132,7 @@ class LLMService:
 
     def get_sentiments(self):
         """Get the sentiment with LLM"""
-        print("Getting Sentiments with LLM")
+        self.logger.info("Getting Sentiments with LLM")
         parsed_sentiments = []
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
@@ -148,9 +150,10 @@ class LLMService:
         sentiments = response.parsed if response.parsed else []
         if not isinstance(sentiments, list):
             return None
-        for sentiment in sentiments:
+        for idx, sentiment in enumerate(sentiments):
             parsed_sentiments.append(
                 Sentiments(
+                    id=f"{self.process_id}-{idx}",
                     brand_report_id=self.brand_report_id,
                     date=self.date,
                     model=self.model,
@@ -167,7 +170,7 @@ class LLMService:
 
     def get_citations(self):
         """Convert markdown to html and extract links"""
-        print("Getting the citations")
+        self.logger.info("Getting the citations")
         citations = []
         html_content = markdown2.markdown(self.clean_content)
         html = HTMLParser(html_content)
@@ -182,6 +185,7 @@ class LLMService:
             parsed = urlparse(link)
             clean_url = clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
             citation = Citations(
+                id=f"{self.process_id}-{i}",
                 brand_report_id=self.brand_report_id,
                 date=self.date,
                 model=self.model,
@@ -198,7 +202,10 @@ class LLMService:
 
     def main(self) -> None:
         """Start the whole parser workflow"""
+        self.logger.info("Starting the whole workflow")
         # download the content from s3
+
+        self.logger.info("Downloaiding content from S3")
         content = self.storage.get_file_content(self.text_key)
         if not content:
             return None
@@ -206,15 +213,15 @@ class LLMService:
         # clean the content
         self.clean_content = self.clean_markdown(content)
 
-        # get and save the citations
-        # self.get_citations()
-        # self.get_sentiments()
-        # self.save_brand_report_output()
+        # get and save parsed data
         self.extract_brand_mentions()
+        self.get_citations()
+        self.get_sentiments()
+        self.save_brand_report_output()
 
 
-if __name__ == "__main__":
-    llm_service = LLMService(
-        "br_12345", "2025-10-05", "Chatgpt", "Nike", "chatgpt/1758754781"
-    )
-    llm_service.main()
+# if __name__ == "__main__":
+#     llm_service = LLMService(
+#         "br_12345", "2025-10-05", "Chatgpt", "Nike", "chatgpt/1758754781"
+#     )
+#     llm_service.main()

@@ -1,8 +1,10 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from src.infrastructure.database import DataBase
+from src.infrastructure import celery_app
 from src.infrastructure.aws_storage import AWSStorage
 from typing import Optional
+from time import time
 
 
 aws_storage = AWSStorage(bucket_name="browser-outputs")
@@ -25,6 +27,33 @@ def common_parameters(
         "date": date,
         "model": model,
     }
+
+
+@router.post("/parse")
+def parse_output(
+    brand_report_id: str,
+    model: str,
+    brand: str,
+    s3_key: str,
+    languague: str,
+    date: str,
+) -> dict:
+    """Start the worflow"""
+
+    timestamp = int(time())
+    process_id = f"{brand_report_id}-{model}-{brand}-{timestamp}"
+    celery_app.run_browser.apply_async(
+        args=(
+            process_id,
+            brand_report_id,
+            model,
+            brand,
+            s3_key,
+            languague,
+            date,
+        )
+    )
+    return {"details": "Parser started", "process": process_id}
 
 
 @router.get("/outputs")
@@ -96,7 +125,11 @@ def get_sentiments(
 
     # Ajouter le count des phrases positives et négatives
     for sentiment in sentiments:
-        sentiment["count_positive_phrases"] = len(sentiment.get("positive_phrases", []))
-        sentiment["count_negative_phrases"] = len(sentiment.get("negative_phrases", []))
+        sentiment["count_positive_phrases"] = len(
+            sentiment.get("positive_phrases", [])
+        )
+        sentiment["count_negative_phrases"] = len(
+            sentiment.get("negative_phrases", [])
+        )
 
     return {"sentiments": sentiments}

@@ -11,7 +11,7 @@ class SentimentBody(BaseModel):
 
 
 class Sentiments(SQLModel, table=True):
-    id: int = Field(primary_key=True, default=None)
+    id: str = Field(primary_key=True)
     brand_report_id: str
     date: str
     model: str
@@ -22,7 +22,7 @@ class Sentiments(SQLModel, table=True):
 
 
 class Citations(SQLModel, table=True):
-    id: Optional[int] = Field(primary_key=True, default=None)
+    id: str = Field(primary_key=True)
     brand_report_id: str
     date: str
     model: str
@@ -34,7 +34,7 @@ class Citations(SQLModel, table=True):
 
 
 class Output_Reports(SQLModel, table=True):
-    id: Optional[int] = Field(primary_key=True, default=None)
+    id: str = Field(primary_key=True)
     brand_report_id: str
     date: str
     model: str

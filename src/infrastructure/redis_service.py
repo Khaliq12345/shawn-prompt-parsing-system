@@ -1,52 +1,57 @@
-import asyncio
-from contextlib import asynccontextmanager
-import redis.asyncio as redis
+import redis
 import logging
 from src.config import config
 
 
-class AsyncRedisBase:
-    def __init__(self, prompt_id: str):
+class RedisBase:
+    def __init__(self, process_id: str):
         self.host = config.REDIS_HOST
         self.port = config.REDIS_PORT
-        self.prompt_id = prompt_id
+        self.process_id = process_id
         self.redis_db = config.REDIS_DB
 
-    @asynccontextmanager
-    async def redis_session(self):
-        session = redis.Redis(
+    # Redis session (synchronous)
+    def redis_session(self):
+        return redis.Redis(
             host=self.host,
             port=self.port,
             db=self.redis_db,
             decode_responses=True,
         )
+
+    # To set a log (sync)
+    def set_log(self, message: str):
+        session = self.redis_session()
         try:
-            yield session
+            session.lpush(self.process_id, message)
         except Exception as e:
-            await session.aclose()
-            raise ValueError(f"REDIS: Session error {e}")
+            print(f"REDIS: Session error {e}")
         finally:
-            await session.aclose()
+            session.close()
 
-    # To set a log (async)
-    async def set_log(self, message: str):
-        async with self.redis_session() as session:
-            await session.lpush(self.prompt_id, message)
-            await session.expire(self.prompt_id, 86400)  # 24 Hours Expiry
-
-    # To retrieve logs (async)
-    async def get_log(self) -> str:
-        async with self.redis_session() as session:
-            values = await session.lrange(self.prompt_id, 0, -1)
+    # To retrieve logs (sync)
+    def get_log(self) -> str:
+        session = self.redis_session()
+        try:
+            values = session.lrange(self.process_id, 0, -1)
             values.reverse()
             return " \n".join(values)
+        except Exception as e:
+            print(f"REDIS: Session error {e}")
+            return ""
+        finally:
+            session.close()
 
 
 class RedisLogHandler(logging.Handler):
-    def __init__(self, redis_logger: AsyncRedisBase):
+    def __init__(self, redis_logger: RedisBase):
         super().__init__()
         self.redis_logger = redis_logger
 
     def emit(self, record):
-        msg = self.format(record)
-        asyncio.create_task(self.redis_logger.set_log(msg))
+        try:
+            log_entry = self.format(record)
+            self.redis_logger.set_log(log_entry)
+        except Exception as e:
+            print(f"RedisLogHandler error: {e}")
+
