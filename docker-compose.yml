@@ -6,7 +6,7 @@ services:
       - .env
     command: uv run main.py
     ports:
-      - "${APP_PORT}:8000"
+      - "${APP_PORT}:{APP_PORT}"
     depends_on:
       - redis
     restart: always
@@ -16,6 +16,17 @@ services:
     env_file:
       - .env
     command: uv run celery -A src.infrastructure.celery_app worker --loglevel=INFO -c 5
+    depends_on:
+      - redis
+    restart: always
+
+  monitor:
+    build: .
+    env_file:
+      - .env
+    command: uv run celery -A src.infrastructure.celery_app flower --port=5000 --loglevel=INFO
+    ports:
+      - "${FLOWER_PORT}:5000"
     depends_on:
       - redis
     restart: always

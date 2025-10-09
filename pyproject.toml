@@ -12,6 +12,7 @@ dependencies = [
     "dateparser>=1.2.2",
     "dotenv>=0.9.9",
     "fastapi>=0.116.1",
+    "flower>=2.0.1",
     "google-genai>=1.32.0",
     "markdown2>=2.5.4",
     "markdownify>=1.2.0",
