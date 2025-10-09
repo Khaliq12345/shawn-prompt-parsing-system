@@ -3,9 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.infrastructure.database import DataBase
 from src.infrastructure import celery_app
 from src.infrastructure.aws_storage import AWSStorage
+from src.config.config import BUCKET_NAME
 from time import time
-
-aws_storage = AWSStorage(bucket_name="browser-outputs")
 
 router = APIRouter(
     prefix="/report/prompts", responses={404: {"description": "Not found"}}
@@ -68,6 +67,7 @@ def get_outputs(
         max_date (str, optional): Lower bound for available report dates.
                                   Example: "7 days ago" or "2023-01-01"
     """
+    aws_storage = AWSStorage(bucket_name=BUCKET_NAME)
     report = db.get_report_outputs(
         arguments["brand_report_id"], arguments["date"], arguments["model"]
     )
@@ -124,11 +124,7 @@ def get_sentiments(
         raise HTTPException(status_code=404, detail="No sentiments found")
 
     for sentiment in sentiments:
-        sentiment["count_positive_phrases"] = len(
-            sentiment.get("positive_phrases", [])
-        )
-        sentiment["count_negative_phrases"] = len(
-            sentiment.get("negative_phrases", [])
-        )
+        sentiment["count_positive_phrases"] = len(sentiment.get("positive_phrases", []))
+        sentiment["count_negative_phrases"] = len(sentiment.get("negative_phrases", []))
 
     return {"sentiments": sentiments}

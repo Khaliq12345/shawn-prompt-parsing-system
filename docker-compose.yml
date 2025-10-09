@@ -15,7 +15,7 @@ services:
     build: .
     env_file:
       - .env
-    command: uv run taskiq worker src.infrastructure.taskiq_app:broker
+    command: uv run celery -A src.infrastructure.celery_app worker --loglevel=INFO -c 5
     depends_on:
       - redis
     restart: always
@@ -24,3 +24,4 @@ services:
   redis:
     image: redis:7-alpine
     restart: always
+    command: ["redis-server", "--port", "6379"]

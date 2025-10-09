@@ -33,5 +33,5 @@ class AWSStorage:
 
 
 if __name__ == "__main__":
-    aws = AWSStorage("browser-outputs")
+    aws = AWSStorage(config.BUCKET_NAME)
     aws.get_presigned_url("chatgpt/1756805263/screenshot.png")
