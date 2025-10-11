@@ -7,6 +7,7 @@ from src.api.v1.prompts import router as prompts_router
 from src.api.v1.logs import router as log_router
 from src.config.config import APP_PORT, ENV, API_KEY
 from src.infrastructure.database import DataBase
+from src.infrastructure.click_house import ClickHouse
 
 database = DataBase()
 
@@ -24,7 +25,7 @@ app = FastAPI(
     title="Prompt Parsing System API",
     description="API with required EndPoints - Structured",
     version="1.0.0",
-    on_startup=[database.create_all_tables],
+    on_startup=[database.create_all_tables, ClickHouse().create_table],
     on_shutdown=[database.engine.dispose],
     dependencies=[Depends(get_api_key)],
 )

@@ -1,4 +1,8 @@
 import clickhouse_connect
+import sqlmodel as db
+from sqlmodel import MetaData, create_engine
+from clickhouse_connect.cc_sqlalchemy.ddl.tableengine import MergeTree
+from clickhouse_connect.cc_sqlalchemy.datatypes.sqltypes import Int64, String, DateTime
 from src.config import config
 import pandas as pd
 
@@ -9,8 +13,29 @@ class ClickHouse:
             host=config.CLICKHOUSE_HOST,
             user=config.CLICKHOUSE_USER,
             password=config.CLICKHOUSE_PASSWORD,
-            secure=True,
+            # secure=True,
         )
+        self.engine = create_engine(
+            f"clickhousedb://{config.CLICKHOUSE_USER}:{config.CLICKHOUSE_PASSWORD}@{config.CLICKHOUSE_HOST}:{config.CLICKHOUSE_PORT}/{config.CLICKHOUSE_DB}?compression=zstd"
+        )
+        self.table = "brands"
+
+    def create_table(self):
+        # Tables
+        with self.engine.begin() as conn:
+            metadata = MetaData(schema=config.CLICKHOUSE_DB)
+            table = db.Table(
+                self.table,
+                metadata,
+                db.Column("brand_report_id", String),
+                db.Column("brand", String),
+                db.Column("mention_count", Int64),
+                db.Column("position", Int64),
+                db.Column("date", DateTime),
+                db.Column("model", String),
+                MergeTree(order_by="date"),
+            )
+            table.create(conn, checkfirst=True)
 
     def get_db(self):
         query = self.client.query("SHOW databases")
@@ -21,7 +46,7 @@ class ClickHouse:
         """Convert data into dataframe and send to clickhouse"""
         print("Getting the dataframe and sending to clickhouse")
         df = pd.DataFrame(records)
-        self.client.insert_df("brands", df=df, database="default")
+        self.client.insert_df(self.table, df=df, database="default")
 
     def get_brand_mention(
         self,
