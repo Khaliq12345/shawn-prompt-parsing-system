@@ -50,6 +50,8 @@ class ClickHouse:
         """Convert data into dataframe and send to clickhouse"""
         print("Getting the dataframe and sending to clickhouse")
         df = pd.DataFrame(records)
+        if df.empty:
+            return None
         self.client.insert_df(self.table, df=df, database="default")
 
     def get_brand_mention(
