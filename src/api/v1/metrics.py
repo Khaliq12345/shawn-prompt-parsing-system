@@ -26,9 +26,7 @@ def common_parameters(
 ):
     end_date = end_date if end_date else get_date()
     start_date = (
-        start_date
-        if start_date
-        else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        start_date if start_date else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
     return {
         "brand": brand,
@@ -55,7 +53,7 @@ def brand_mentions(
         )
         return {"data": {"mentions": result.get("data", 0)}}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Server Error: {e}")
 
 
 # Brand Share of Voice
@@ -74,7 +72,7 @@ def brand_sov(
         )
         return {"data": {"sov": result.get("data", 0.0)}}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Server Error: {e}")
 
 
 # Brand Coverage
@@ -93,7 +91,7 @@ def brand_coverage(
         )
         return {"data": {"coverage": result.get("data", 0.0)}}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Server Error: {e}")
 
 
 # Brand Position
@@ -112,7 +110,7 @@ def brand_position(
         )
         return {"data": {"position": result.get("data", 0.0)}}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Server Error: {e}")
 
 
 # Brand Ranking
@@ -130,4 +128,4 @@ def brand_ranking(
         )
         return {"data": {"ranking": result or []}}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Server Error: {e}")

@@ -2,7 +2,11 @@ import clickhouse_connect
 import sqlmodel as db
 from sqlmodel import MetaData, create_engine
 from clickhouse_connect.cc_sqlalchemy.ddl.tableengine import MergeTree
-from clickhouse_connect.cc_sqlalchemy.datatypes.sqltypes import Int64, String, DateTime
+from clickhouse_connect.cc_sqlalchemy.datatypes.sqltypes import (
+    Int64,
+    String,
+    DateTime,
+)
 from src.config import config
 import pandas as pd
 

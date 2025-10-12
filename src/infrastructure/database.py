@@ -73,7 +73,7 @@ class DataBase:
             # Base query
             statement = select(Output_Reports).where(
                 Output_Reports.brand_report_id == brand_report_id,
-                Output_Reports.date == date,
+                # Output_Reports.date == date,
             )
 
             # Apply optional model filter
@@ -86,7 +86,6 @@ class DataBase:
                 return None
 
             return {"snapshot": result.snapshot, "markdown": result.markdown}
-
 
     def get_citations(
         self,
@@ -127,7 +126,7 @@ class DataBase:
                 statement = statement.where(Citations.model == model)
 
             results = session.exec(statement).all()
-        
+
         citations = [json.loads(result.model_dump_json()) for result in results]
         return citations
 
@@ -170,10 +169,9 @@ class DataBase:
                 statement = statement.where(Sentiments.model == model)
 
             results = session.exec(statement).all()
-        
-        sentiments = [json.loads(result.model_dump_json()) for result in results]    
-        return sentiments
 
+        sentiments = [json.loads(result.model_dump_json()) for result in results]
+        return sentiments
 
     def get_report_dates(self, max_dates: str = "7 days ago") -> list[str]:
         """
@@ -202,7 +200,7 @@ class DataBase:
             # Build the SQL query to fetch all dates >= start_date
             statement = (
                 select(Output_Reports.date)
-                .where(Column(Output_Reports.date) >= start_date)
+                .where(Output_Reports.date >= start_date)
                 .order_by(Output_Reports.date.desc())
             )
 
