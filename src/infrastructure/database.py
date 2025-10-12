@@ -73,7 +73,7 @@ class DataBase:
             # Base query
             statement = select(Output_Reports).where(
                 Output_Reports.brand_report_id == brand_report_id,
-                # Output_Reports.date == date,
+                Output_Reports.date == date,
             )
 
             # Apply optional model filter

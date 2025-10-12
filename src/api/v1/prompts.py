@@ -23,14 +23,9 @@ def get_date() -> str:
 # Shared query parameters
 def common_parameters(
     brand_report_id: str = Query(..., description="Brand report ID"),
-    date: Optional[str] = Query("7 days ago", description="Report date"),
+    date: Optional[str] = Query(None, description="Report date"),
     model: str = Query("all", description="Model name (default: 'all')"),
 ):
-    date = None
-    date_node = dateparser.parse("7 days Ago")
-    if not date_node:
-        raise HTTPException(status_code=400, detail="Date is not valid")
-    date = date_node.strftime("%Y-%m-%d %H:%M:%S")
     return {
         "brand_report_id": brand_report_id,
         "date": date,
