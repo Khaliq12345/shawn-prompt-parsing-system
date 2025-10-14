@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.infrastructure.database import DataBase
 from src.infrastructure import celery_app
 from src.infrastructure.aws_storage import AWSStorage
-from src.config.config import BUCKET_NAME
 from time import time
 import dateparser
 
@@ -77,7 +76,7 @@ def get_outputs(
                                   Example: "7 days ago" or "2023-01-01"
     """
     try:
-        aws_storage = AWSStorage(bucket_name=BUCKET_NAME)
+        aws_storage = AWSStorage()
         report = db.get_report_outputs(
             arguments["brand_report_id"], arguments["date"], arguments["model"]
         )

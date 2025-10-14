@@ -55,7 +55,7 @@ class LLMService:
         # initialise others
         self.bucket = config.BUCKET_NAME
         self.client = genai.Client(api_key=config.GEMINI_API_KEY)
-        self.storage = AWSStorage(self.bucket)
+        self.storage = AWSStorage()
         self.content = ""
         self.clean_content = ""
         # initialise db

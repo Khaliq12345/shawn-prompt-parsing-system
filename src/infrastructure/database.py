@@ -1,5 +1,9 @@
+import sys
+
+sys.path.append("..")
+
 import json
-from sqlmodel import Column, Session, create_engine, select
+from sqlmodel import Column, Session, and_, create_engine, select
 from src.infrastructure.models import (
     Output_Reports,
     SQLModel,
@@ -220,3 +224,30 @@ class DataBase:
             ]
 
         return unique_dates_str
+
+    # ------------------------DOMAIN-----------------------------------
+
+    def get_domain_citation(
+        self,
+        brand_report_id: str,
+        start_date: str,
+        end_date: str,
+        model: str,
+    ):
+        """Get the citation for a particular domain"""
+        s3_keys = []
+        with Session(self.engine) as session:
+            # get all s3 keys of the selected brand_report_id
+            stmt = select(Output_Reports.markdown).where(
+                and_(
+                    Output_Reports.date <= start_date,
+                    Output_Reports.date >= end_date,
+                    Output_Reports.brand_report_id == brand_report_id,
+                )
+            )
+            if model != "all":
+                stmt = stmt.where(Output_Reports.model == model)
+            results = session.exec(stmt).all()
+            for result in results:
+                s3_keys.append(result)
+        return s3_keys

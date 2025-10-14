@@ -7,9 +7,9 @@ from src.config import config
 
 
 class AWSStorage:
-    def __init__(self, bucket_name, region_name="eu-north-1"):
-        self.bucket_name = bucket_name
-        self.region_name = region_name
+    def __init__(self):
+        self.bucket_name = config.BUCKET_NAME
+        self.region_name = "eu-north-1"
         self.s3_client = boto3.client(
             "s3",
             region_name=self.region_name,
@@ -33,5 +33,5 @@ class AWSStorage:
 
 
 if __name__ == "__main__":
-    aws = AWSStorage(config.BUCKET_NAME)
+    aws = AWSStorage()
     aws.get_presigned_url("chatgpt/1756805263/screenshot.png")

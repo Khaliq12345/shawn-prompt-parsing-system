@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.api.v1.metrics import router as metrics_router
 from src.api.v1.prompts import router as prompts_router
 from src.api.v1.logs import router as log_router
+from src.api.v1.sources import router as source_router
 from src.config.config import APP_PORT, ENV, API_KEY
 from src.infrastructure.database import DataBase
 from src.infrastructure.click_house import ClickHouse
@@ -44,6 +45,7 @@ app.add_middleware(
 app.include_router(prefix="/api", router=metrics_router, tags=["METRICS"])
 app.include_router(prefix="/api", router=prompts_router, tags=["PROMPTS"])
 app.include_router(prefix="/api", router=log_router, tags=["LOGS"])
+app.include_router(prefix="/api", router=source_router, tags=["SOURCE"])
 
 
 def start_app():

@@ -54,4 +54,3 @@ class RedisLogHandler(logging.Handler):
             self.redis_logger.set_log(log_entry)
         except Exception as e:
             print(f"RedisLogHandler error: {e}")
-
