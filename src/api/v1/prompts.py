@@ -75,31 +75,36 @@ def get_outputs(
         max_date (str, optional): Lower bound for available report dates.
                                   Example: "7 days ago" or "2023-01-01"
     """
-    try:
-        aws_storage = AWSStorage()
-        report = db.get_report_outputs(
-            arguments["brand_report_id"], arguments["date"], arguments["model"]
-        )
+    print(arguments)
+    # try:
+    aws_storage = AWSStorage()
+    report = db.get_report_outputs(
+        arguments["brand_report_id"], arguments["date"], arguments["model"]
+    )
+    print(report)
+    if not report:
+        raise HTTPException(status_code=404, detail="Output report not found")
 
-        if not report:
-            raise HTTPException(status_code=404, detail="Output report not found")
+    # Generate AWS S3 pre-signed URLs
+    print("GETTING PRESIGNED URLS")
+    snapshot_url = aws_storage.get_presigned_url(report["snapshot"])
+    markdown_url = aws_storage.get_presigned_url(report["markdown"])
+    print("URLS GOTTEN")
 
-        # Generate AWS S3 pre-signed URLs
-        snapshot_url = aws_storage.get_presigned_url(report["snapshot"])
-        markdown_url = aws_storage.get_presigned_url(report["markdown"])
+    # Retrieve all unique available dates according to max_date
+    print("GETTING ALL DATES")
+    available_dates = db.get_report_dates(max_dates=max_date)
+    print("ALL DATES GOTTEN")
 
-        # Retrieve all unique available dates according to max_date
-        available_dates = db.get_report_dates(max_dates=max_date)
-
-        return {
-            "snapshot_url": snapshot_url,
-            "markdown": markdown_url,
-            "available_dates": available_dates,
-        }
-    except HTTPException as _:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Server Error: {e}")
+    return {
+        "snapshot_url": snapshot_url,
+        "markdown": markdown_url,
+        "available_dates": available_dates,
+    }
+    # except HTTPException as _:
+    #     raise
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=f"Server Error: {e}")
 
 
 @router.get("/citations")

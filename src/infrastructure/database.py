@@ -3,7 +3,7 @@ import sys
 sys.path.append("..")
 
 import json
-from sqlmodel import Column, Session, and_, create_engine, select
+from sqlmodel import Session, and_, create_engine, select
 from src.infrastructure.models import (
     Output_Reports,
     SQLModel,
@@ -66,7 +66,7 @@ class DataBase:
                 latest_date = session.exec(
                     select(Output_Reports.date)
                     .where(Output_Reports.brand_report_id == brand_report_id)
-                    .order_by(Column(Output_Reports.date).desc())
+                    .order_by(Output_Reports.date.desc())
                 ).first()
 
                 if not latest_date:
