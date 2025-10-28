@@ -15,6 +15,7 @@ app = Celery(
 def run_browser(
     process_id: str,
     brand_report_id: str,
+    prompt_id: str,
     model: str,
     brand: str,
     s3_key: str,
@@ -45,6 +46,7 @@ def run_browser(
     matching_scraper = LLMService(
         process_id=process_id,
         brand_report_id=brand_report_id,
+        prompt_id=prompt_id,
         date=date,
         model=model,
         brand=brand,

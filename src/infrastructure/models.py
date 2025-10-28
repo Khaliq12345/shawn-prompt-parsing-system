@@ -36,6 +36,7 @@ class Citations(SQLModel, table=True):
 class Output_Reports(SQLModel, table=True):
     id: str = Field(primary_key=True)
     brand_report_id: str
+    prompt_id: str
     date: str
     model: str
     snapshot: str

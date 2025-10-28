@@ -1,11 +1,10 @@
 from datetime import datetime
 from typing import Annotated, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from google import genai
 from google.genai.types import GenerateContentConfig
 from src.infrastructure.aws_storage import AWSStorage
-from src.infrastructure.llm_service import LLMService
-from src.config.config import BUCKET_NAME, GEMINI_API_KEY, MODEL_NAME
+from src.config.config import GEMINI_API_KEY, MODEL_NAME
 import dateparser
 from src.api.dependencies import database_depends
 import re
@@ -32,7 +31,6 @@ def get_domain_competitor(urls: list[str], domain: str):
             response_schema=list[Domain_Model],
         ),
     )
-
     # Validate sentiments
     results = response.parsed if response.parsed else []
     return [result.domain for result in results]
@@ -64,14 +62,6 @@ def common_parameters(
         "model": model,
         "domain": domain,
     }
-
-
-def extract_urls_from_markdown(markdown_text: str):
-    """
-    Extracts all URLs from markdown links like [text](url)
-    """
-    pattern = r"\[.*?\]\((https?://[^\s)]+)\)"
-    return re.findall(pattern, markdown_text)
 
 
 def extract_url_data(text):

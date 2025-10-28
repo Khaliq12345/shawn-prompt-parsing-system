@@ -3,7 +3,7 @@ import sys
 sys.path.append("..")
 
 import json
-from sqlmodel import Session, and_, create_engine, select
+from sqlmodel import Session, create_engine, select, and_
 from src.infrastructure.models import (
     Output_Reports,
     SQLModel,
@@ -30,22 +30,26 @@ class DataBase:
         with Session(self.engine) as session:
             session.add_all(citations)
             session.commit()
+            session.close()
 
     def save_sentiments(self, sentiments: list[Sentiments]) -> None:
         print("Saving Sentiments")
         with Session(self.engine) as session:
             session.add_all(sentiments)
             session.commit()
+            session.close()
 
     def save_output_reports(self, output_report: Output_Reports) -> None:
         print("Saving Output report")
         with Session(self.engine) as session:
             session.add(output_report)
             session.commit()
+            session.close()
 
     def get_report_outputs(
         self,
         brand_report_id: str,
+        prompt_id: str,
         date: Optional[str] = None,
         model: str = "all",
     ) -> dict | None:
@@ -65,7 +69,12 @@ class DataBase:
             if date is None:
                 latest_date = session.exec(
                     select(Output_Reports.date)
-                    .where(Output_Reports.brand_report_id == brand_report_id)
+                    .where(
+                        and_(
+                            Output_Reports.brand_report_id == brand_report_id,
+                            Output_Reports.prompt_id == prompt_id,
+                        )
+                    )
                     .order_by(Output_Reports.date.desc())
                 ).first()
 
@@ -88,6 +97,8 @@ class DataBase:
 
             if not result:
                 return None
+
+            session.close()
 
             return {"snapshot": result.snapshot, "markdown": result.markdown}
 
@@ -130,6 +141,7 @@ class DataBase:
                 statement = statement.where(Citations.model == model)
 
             results = session.exec(statement).all()
+            session.close()
 
         citations = [json.loads(result.model_dump_json()) for result in results]
         return citations
@@ -173,6 +185,7 @@ class DataBase:
                 statement = statement.where(Sentiments.model == model)
 
             results = session.exec(statement).all()
+            session.close()
 
         sentiments = [json.loads(result.model_dump_json()) for result in results]
         return sentiments
@@ -223,6 +236,8 @@ class DataBase:
                 for unique_date in unique_dates
             ]
 
+            session.close()
+
         return unique_dates_str
 
     # ------------------------DOMAIN-----------------------------------
@@ -250,4 +265,6 @@ class DataBase:
             results = session.exec(stmt).all()
             for result in results:
                 s3_keys.append(result)
+
+            session.close()
         return s3_keys

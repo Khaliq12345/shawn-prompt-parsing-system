@@ -35,6 +35,7 @@ def common_parameters(
 @router.post("/parse")
 def parse_output(
     brand_report_id: str,
+    prompt_id: str,
     model: str,
     brand: str,
     s3_key: str,
@@ -49,6 +50,7 @@ def parse_output(
             args=(
                 process_id,
                 brand_report_id,
+                prompt_id,
                 model,
                 brand,
                 s3_key,
@@ -64,6 +66,7 @@ def parse_output(
 @router.get("/outputs")
 def get_outputs(
     arguments: Annotated[dict, Depends(common_parameters)],
+    prompt_id: str,
     db: Annotated[DataBase, Depends(DataBase)],
     max_date: str = "7 days ago",
 ):
@@ -76,35 +79,38 @@ def get_outputs(
                                   Example: "7 days ago" or "2023-01-01"
     """
     print(arguments)
-    # try:
-    aws_storage = AWSStorage()
-    report = db.get_report_outputs(
-        arguments["brand_report_id"], arguments["date"], arguments["model"]
-    )
-    print(report)
-    if not report:
-        raise HTTPException(status_code=404, detail="Output report not found")
+    try:
+        aws_storage = AWSStorage()
+        report = db.get_report_outputs(
+            arguments["brand_report_id"],
+            prompt_id,
+            arguments["date"],
+            arguments["model"],
+        )
+        print(report)
+        if not report:
+            raise HTTPException(status_code=404, detail="Output report not found")
 
-    # Generate AWS S3 pre-signed URLs
-    print("GETTING PRESIGNED URLS")
-    snapshot_url = aws_storage.get_presigned_url(report["snapshot"])
-    markdown_url = aws_storage.get_presigned_url(report["markdown"])
-    print("URLS GOTTEN")
+        # Generate AWS S3 pre-signed URLs
+        print("GETTING PRESIGNED URLS")
+        snapshot_url = aws_storage.get_presigned_url(report["snapshot"])
+        markdown_url = aws_storage.get_presigned_url(report["markdown"])
+        print("URLS GOTTEN")
 
-    # Retrieve all unique available dates according to max_date
-    print("GETTING ALL DATES")
-    available_dates = db.get_report_dates(max_dates=max_date)
-    print("ALL DATES GOTTEN")
+        # Retrieve all unique available dates according to max_date
+        print("GETTING ALL DATES")
+        available_dates = db.get_report_dates(max_dates=max_date)
+        print("ALL DATES RETRIEVED")
 
-    return {
-        "snapshot_url": snapshot_url,
-        "markdown": markdown_url,
-        "available_dates": available_dates,
-    }
-    # except HTTPException as _:
-    #     raise
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=f"Server Error: {e}")
+        return {
+            "snapshot_url": snapshot_url,
+            "markdown": markdown_url,
+            "available_dates": available_dates,
+        }
+    except HTTPException as _:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Server Error: {e}")
 
 
 @router.get("/citations")
