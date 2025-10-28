@@ -239,12 +239,12 @@ class DataBase:
         with Session(self.engine) as session:
             # get all s3 keys of the selected brand_report_id
             stmt = select(Output_Reports.markdown).where(
-                and_(
-                    Output_Reports.date <= start_date,
-                    Output_Reports.date >= end_date,
-                    Output_Reports.brand_report_id == brand_report_id,
-                )
+                Output_Reports.brand_report_id == brand_report_id
             )
+            if start_date:
+                stmt.where(Output_Reports.date <= start_date)
+            if end_date:
+                stmt.where(Output_Reports.date <= end_date)
             if model != "all":
                 stmt = stmt.where(Output_Reports.model == model)
             results = session.exec(stmt).all()

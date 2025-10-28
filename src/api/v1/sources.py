@@ -1,19 +1,41 @@
 from datetime import datetime
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException
-from src.infrastructure import aws_storage
+from google import genai
+from google.genai.types import GenerateContentConfig
 from src.infrastructure.aws_storage import AWSStorage
-from src.config.config import BUCKET_NAME
+from src.infrastructure.llm_service import LLMService
+from src.config.config import BUCKET_NAME, GEMINI_API_KEY, MODEL_NAME
 import dateparser
 from src.api.dependencies import database_depends
 import re
 from collections import Counter
 from urllib.parse import urlparse
 
+from src.infrastructure.models import Domain_Model
+from src.infrastructure.prompt import get_domain_user_prompt
+
 router = APIRouter(
     prefix="/report/sources/domain",
     responses={404: {"description": "Not found"}},
 )
+
+
+def get_domain_competitor(urls: list[str], domain: str):
+    """Get the competitors of any domain among a list of urls"""
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    response = client.models.generate_content(
+        model=MODEL_NAME,
+        contents=get_domain_user_prompt(urls, domain),
+        config=GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=list[Domain_Model],
+        ),
+    )
+
+    # Validate sentiments
+    results = response.parsed if response.parsed else []
+    return [result.domain for result in results]
 
 
 def get_date() -> str:
@@ -44,6 +66,14 @@ def common_parameters(
     }
 
 
+def extract_urls_from_markdown(markdown_text: str):
+    """
+    Extracts all URLs from markdown links like [text](url)
+    """
+    pattern = r"\[.*?\]\((https?://[^\s)]+)\)"
+    return re.findall(pattern, markdown_text)
+
+
 def extract_url_data(text):
     """
     Extract all URLs from text and return normalized URL, count, and main domain.
@@ -67,9 +97,7 @@ def extract_url_data(text):
         else:
             domain = parsed.netloc.lower()
 
-        results.append(
-            {"normalised_url": clean_url, "count": count, "domain": domain}
-        )
+        results.append({"normalised_url": clean_url, "count": count, "domain": domain})
 
     return results
 
@@ -79,6 +107,7 @@ def get_domain_citation(
     parameters: Annotated[dict, Depends(common_parameters)],
     database: database_depends,
 ):
+    aws = AWSStorage()
     brand_report_id = parameters.get("brand_report_id", "")
     start_date = parameters.get("start_date", "")
     end_date = parameters.get("end_date", "")
@@ -90,9 +119,10 @@ def get_domain_citation(
         end_date=end_date,
         model=model,
     )
+
     markdown = ""
-    aws = AWSStorage()
     coverage_num = 0
+    response_output = {"domain": None, "competitor_domains": [], "external_domains": []}
     for s3_key in s3_keys:
         print(f"LOADING KEY - {s3_key}")
         output = aws.get_file_content(s3_key)
@@ -100,18 +130,26 @@ def get_domain_citation(
         if domain in markdown:
             coverage_num += 1
 
-    pattern = (
-        rf"(?:https?://)?(?:[\w-]+\.)*{re.escape(domain)}(?:/[^\s\"'<>]*)?"
-    )
-
+    pattern = r"\[.*?\]\((https?://[^\s)]+)\)"
     matches = re.findall(pattern, markdown, flags=re.IGNORECASE)
+
+    competitor_domains = get_domain_competitor(matches, domain)
+
+    url_records = extract_url_data(markdown)
+    for url_record in url_records:
+        if url_record["domain"] == domain:
+            response_output["domain"] = url_record
+        elif url_record["domain"] in competitor_domains:
+            response_output["competitor_domains"].append(url_record)
+        else:
+            response_output["external_domains"].append(url_record)
+
     coverage = (coverage_num / len(s3_keys)) * 100
     coverage = round(coverage, 2)
-    url_data = extract_url_data(markdown)
     return {
         "details": {
             "citation": len(matches),
             "coverage": coverage,
-            "url_data": url_data,
+            "url_data": response_output,
         }
     }

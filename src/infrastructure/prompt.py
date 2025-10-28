@@ -31,8 +31,8 @@ SYSTEM_PROMPT = """
 
         - Prompt Position Output: For each brand mention, record the position (starting from 1) of the brand compared to the others.
             For example: If Adidas brand appears before Nike brand then in the output Adidas position will be 1 and Nike will be 2.
-                        If those two are the only ones in the markdown. 
-        
+                        If those two are the only ones in the markdown.
+
 
     Common Errors to Avoid
 
@@ -69,7 +69,7 @@ USER_PROMPT = """
         "Adidas Adizero Evo SL and the Adidas Ultraboost Light are both excellent.
         The Nike Pegasus is also great."
 
-    Example Output: 
+    Example Output:
     [{"mention_count": 2, "position": 1, "brand_name": "Adidas"},
     {"mention_count": 1, "position": 2, "brand_name": "Nike"}],
 
@@ -86,18 +86,18 @@ def get_user_prompt(clean_content: str) -> str:
 
 # SENTIMENTS ---------------------------------------
 SENTIMENT_SYSTEM_PROMPT = """
-You are an expert text parser and sentiment analyzer for brand reviews.  
-Your job is to:  
-1. Parse **only the main rendered answer text** (ignore citations, footnotes, metadata).  
-2. Detect **brands** (e.g., Adidas, Nike, New Balance, Asics, Brooks, Saucony, etc.).  
-3. Detect **models** if present (e.g., Adidas Ultraboost 22 → model = Ultraboost 22, brand = Adidas).  
-4. Extract **short descriptive phrases** (snippets) around each brand or model mention that describe quality, performance, or characteristics.  
-5. Classify each phrase as:  
-   - 🟢 Positive  
-   - 🔴 Negative  
-6. Attribute each phrase to the correct brand/model.   
+You are an expert text parser and sentiment analyzer for brand reviews.
+Your job is to:
+1. Parse **only the main rendered answer text** (ignore citations, footnotes, metadata).
+2. Detect **brands** (e.g., Adidas, Nike, New Balance, Asics, Brooks, Saucony, etc.).
+3. Detect **models** if present (e.g., Adidas Ultraboost 22 → model = Ultraboost 22, brand = Adidas).
+4. Extract **short descriptive phrases** (snippets) around each brand or model mention that describe quality, performance, or characteristics.
+5. Classify each phrase as:
+   - 🟢 Positive
+   - 🔴 Negative
+6. Attribute each phrase to the correct brand/model.
 
-Always return results in **strict JSON** format, structured exactly as follows:  
+Always return results in **strict JSON** format, structured exactly as follows:
 
 ```json
 [
@@ -129,12 +129,12 @@ Always return results in **strict JSON** format, structured exactly as follows:
 """
 
 SENTIMENT_USER_PROMPT = """
-You are given a markdown about brands.  
-Your task is to parse this text and return results strictly in the JSON format defined in the System Prompt.  
+You are given a markdown about brands.
+Your task is to parse this text and return results strictly in the JSON format defined in the System Prompt.
 
-- Focus only on the **main body text** (ignore citations, footnotes, and metadata).  
-- Detect all **brands** and, if mentioned, their **models**.  
-- Extract short descriptive snippets (phrases) that describe performance, comfort, quality, durability, or design.  
+- Focus only on the **main body text** (ignore citations, footnotes, and metadata).
+- Detect all **brands** and, if mentioned, their **models**.
+- Extract short descriptive snippets (phrases) that describe performance, comfort, quality, durability, or design.
 - Classify each phrase as 🟢 Positive or 🔴 Negative.
 """
 
@@ -143,5 +143,39 @@ def get_sentiment_user_prompt(clean_content: str) -> str:
     return f"""
     {SENTIMENT_USER_PROMPT}
     Here is the markdown you must parse for brand and sentiment mentions:
+    {clean_content}
+    """
+
+
+GET_DOMAIN_USER_PROMPT = """
+### 🧠 Prompt: Find Popular Competitor Domains from URLs
+
+You are an intelligent assistant that identifies **popular competitor domains** of a given main domain.
+
+**Instructions:**
+
+* You will be provided with:
+
+  1. A **main domain** (the user’s domain).
+  2. A **list of URLs**, which may include full links (e.g., `https://us.puma.com/us/en/men`) rather than just domains.
+* Your task is to:
+
+  * Extract the **domain names** from each URL.
+  * Identify which of these domains belong to **well-known competitors** of the main domain.
+  * Focus on **popular or major competitors**, not small or unrelated sites.
+* If multiple popular competitors are found, **return all of them**.
+* Ignore unrelated, low-relevance, or non-competitive domains.
+"""
+
+
+def get_domain_user_prompt(clean_content: list[str], domain: str) -> str:
+    return f"""
+    {GET_DOMAIN_USER_PROMPT}
+
+    Here is the user domain
+    {domain}
+
+    -----------------------------
+    Here is the urls input
     {clean_content}
     """

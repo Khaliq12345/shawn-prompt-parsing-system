@@ -11,6 +11,7 @@ from src.infrastructure.prompt import (
     SYSTEM_PROMPT,
     get_sentiment_user_prompt,
     get_user_prompt,
+    get_domain_user_prompt,
 )
 import json
 
@@ -20,6 +21,7 @@ from src.infrastructure.models import (
     Output_Reports,
     SentimentBody,
     Sentiments,
+    Domain_Model,
 )
 import markdown2
 from markdownify import markdownify as md
@@ -199,6 +201,22 @@ class LLMService:
         print(f"Found -> {len(citations)} citations")
         # once citations have been validated then save
         self.database.save_citations(citations)
+
+    def get_domain_competitor(self, prompt_urls: list[str], domain: str):
+        """Get the competitors of any domain among a list of urls"""
+        self.logger.info("Getting Competitor domain(s) with LLM")
+        response = self.client.models.generate_content(
+            model=config.MODEL_NAME,
+            contents=get_domain_user_prompt(prompt_urls, domain),
+            config=GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=list[Domain_Model],
+            ),
+        )
+
+        # Validate sentiments
+        results = response.parsed if response.parsed else []
+        return results
 
     def main(self) -> None:
         """Start the whole parser workflow"""

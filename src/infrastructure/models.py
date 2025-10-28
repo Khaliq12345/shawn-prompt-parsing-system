@@ -46,3 +46,7 @@ class Brand_Metrics(BaseModel):
     brand: str
     mention_count: int
     position: int
+
+
+class Domain_Model(BaseModel):
+    domain: str
