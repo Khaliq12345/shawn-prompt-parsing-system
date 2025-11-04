@@ -1,3 +1,4 @@
+from collections import defaultdict
 import clickhouse_connect
 import sqlmodel as db
 from sqlmodel import MetaData, create_engine
@@ -86,8 +87,8 @@ class ClickHouse:
         start_date: str,
     ) -> dict:
         stmt = f"""
-            SELECT 
-                (SUM(CASE WHEN brand = '{brand}' THEN mention_count ELSE 0 END) 
+            SELECT
+                (SUM(CASE WHEN brand = '{brand}' THEN mention_count ELSE 0 END)
                  / SUM(mention_count)) * 100 AS sov,  toDateTime(date) AS date
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
@@ -134,8 +135,8 @@ class ClickHouse:
         start_date: str,
     ) -> dict:
         stmt = f"""
-            SELECT 
-                SUM(brands.position) as all_position, 
+            SELECT
+                SUM(brands.position) as all_position,
                 sumIf(brands.position, brands.brand = '{brand}') as brand_position
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
@@ -194,3 +195,64 @@ class ClickHouse:
             prev_mentions = mentions
 
         return ranking
+
+    def get_brand_ranking_over_time(
+        self,
+        brand_report_id: str,
+        start_date: str,
+        end_date: str,
+        model: str,
+    ) -> list:
+        stmt = f"""
+            SELECT
+                date,
+                brands.brand,
+                SUM(brands.mention_count) AS total_mentions
+            FROM default.brands
+            WHERE brand_report_id = '{brand_report_id}'
+            AND date <= '{start_date}' AND date >= '{end_date}'
+            {"AND model = '" + model + "'" if model != "all" else ""}
+            GROUP BY date, brands.brand
+            ORDER BY date ASC, total_mentions DESC
+        """
+
+        query = self.client.query(stmt)
+        if not query.row_count:
+            return []
+
+        results = query.named_results()
+        ranking_over_time = []
+
+        # group results by date
+
+        grouped = defaultdict(list)
+        for row in results:
+            grouped[row["date"]].append(row)
+
+        # calculate competition ranking per date
+        for date, rows in grouped.items():
+            prev_mentions = None
+            rank = 0
+            skip = 1
+            date_rankings = []
+
+            for row in rows:
+                mentions = row["total_mentions"] or 0
+                if mentions == prev_mentions:
+                    skip += 1
+                else:
+                    rank += skip
+                    skip = 1
+                date_rankings.append(
+                    {
+                        "date": date,
+                        "rank": rank,
+                        "brand_name": row["brand"],
+                        "mention_count": mentions,
+                    }
+                )
+                prev_mentions = mentions
+
+            ranking_over_time.extend(date_rankings)
+
+        return ranking_over_time

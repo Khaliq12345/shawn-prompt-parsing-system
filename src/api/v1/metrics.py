@@ -129,3 +129,21 @@ def brand_ranking(
         return {"data": {"ranking": result or []}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server Error: {e}")
+
+
+# Brand Ranking over time
+@router.get("/ranking-over-time")
+def brand_ranking_over_time(
+    arguments: Annotated[dict, Depends(common_parameters)],
+    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
+):
+    try:
+        result = clickhouse.get_brand_ranking_over_time(
+            brand_report_id=arguments["brand_report_id"],
+            start_date=arguments["start_date"],
+            end_date=arguments["end_date"],
+            model=arguments["model"],
+        )
+        return {"data": {"ranking": result or []}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Server Error: {e}")
