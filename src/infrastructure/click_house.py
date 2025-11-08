@@ -1,15 +1,17 @@
 from collections import defaultdict
+
 import clickhouse_connect
+import pandas as pd
 import sqlmodel as db
-from sqlmodel import MetaData, create_engine
-from clickhouse_connect.cc_sqlalchemy.ddl.tableengine import MergeTree
 from clickhouse_connect.cc_sqlalchemy.datatypes.sqltypes import (
+    DateTime,
     Int64,
     String,
-    DateTime,
 )
+from clickhouse_connect.cc_sqlalchemy.ddl.tableengine import MergeTree
+from sqlmodel import MetaData, create_engine
+
 from src.config import config
-import pandas as pd
 
 
 class ClickHouse:
@@ -215,26 +217,24 @@ class ClickHouse:
             GROUP BY date, brands.brand
             ORDER BY date ASC, total_mentions DESC
         """
-
         query = self.client.query(stmt)
         if not query.row_count:
             return []
-
         results = query.named_results()
-        ranking_over_time = []
 
-        # group results by date
-
-        grouped = defaultdict(list)
+        # Group results by date
+        grouped_by_date = defaultdict(list)
         for row in results:
-            grouped[row["date"]].append(row)
+            grouped_by_date[row["date"]].append(row)
 
-        # calculate competition ranking per date
-        for date, rows in grouped.items():
+        # Calculate rankings per date and collect points per brand
+        brand_points = defaultdict(list)
+
+        for date in sorted(grouped_by_date.keys()):
+            rows = grouped_by_date[date]
             prev_mentions = None
             rank = 0
             skip = 1
-            date_rankings = []
 
             for row in rows:
                 mentions = row["total_mentions"] or 0
@@ -243,16 +243,20 @@ class ClickHouse:
                 else:
                     rank += skip
                     skip = 1
-                date_rankings.append(
+
+                brand_points[row["brand"]].append(
                     {
                         "date": date,
                         "rank": rank,
-                        "brand_name": row["brand"],
                         "mention_count": mentions,
                     }
                 )
                 prev_mentions = mentions
 
-            ranking_over_time.extend(date_rankings)
+        # Format output as list of brand objects
+        ranking_over_time = [
+            {"brand_name": brand_name, "points": points}
+            for brand_name, points in brand_points.items()
+        ]
 
         return ranking_over_time

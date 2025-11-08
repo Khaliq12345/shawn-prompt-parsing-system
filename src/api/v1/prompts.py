@@ -1,10 +1,12 @@
+from time import time
 from typing import Annotated, Optional
+
+import dateparser
 from fastapi import APIRouter, Depends, HTTPException, Query
-from src.infrastructure.database import DataBase
+
 from src.infrastructure import celery_app
 from src.infrastructure.aws_storage import AWSStorage
-from time import time
-import dateparser
+from src.infrastructure.database import DataBase
 
 router = APIRouter(
     prefix="/report/prompts", responses={404: {"description": "Not found"}}
@@ -65,9 +67,11 @@ def parse_output(
 
 @router.get("/outputs")
 def get_outputs(
-    arguments: Annotated[dict, Depends(common_parameters)],
     prompt_id: str,
     db: Annotated[DataBase, Depends(DataBase)],
+    brand_report_id: str = Query(..., description="Brand report ID"),
+    date: Optional[str] = Query(None, description="Report date"),
+    model: str = Query("chatgpt", description="Model name"),
     max_date: str = "7 days ago",
 ):
     """
@@ -78,14 +82,13 @@ def get_outputs(
         max_date (str, optional): Lower bound for available report dates.
                                   Example: "7 days ago" or "2023-01-01"
     """
-    print(arguments)
     try:
         aws_storage = AWSStorage()
         report = db.get_report_outputs(
-            arguments["brand_report_id"],
+            brand_report_id,
             prompt_id,
-            arguments["date"],
-            arguments["model"],
+            date,
+            model,
         )
         print(report)
         if not report:
