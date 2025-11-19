@@ -1,8 +1,10 @@
-from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
-from src.infrastructure.click_house import ClickHouse
 from datetime import datetime
+from typing import Annotated
+
 import dateparser
+from fastapi import APIRouter, Depends, HTTPException
+
+from src.infrastructure.click_house import ClickHouse
 
 router = APIRouter(
     prefix="/report/metrics", responses={404: {"description": "Not found"}}
@@ -145,5 +147,23 @@ def brand_ranking_over_time(
             model=arguments["model"],
         )
         return {"data": {"ranking": result or []}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Server Error: {e}")
+
+
+# Get Brand Info
+@router.get("/brand-info")
+def get_brand_info(
+    brand_report_id: str,
+    prompt_id: str,
+    model: str,
+    date: str,
+    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
+):
+    try:
+        result = clickhouse.get_info(
+            brand_report_id=brand_report_id, date=date, model=model, prompt_id=prompt_id
+        )
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server Error: {e}")

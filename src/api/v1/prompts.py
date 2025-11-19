@@ -65,6 +65,18 @@ def parse_output(
         raise HTTPException(status_code=500, detail=f"Server Error: {e}")
 
 
+@router.get("/reports")
+def get_reports(
+    db: Annotated[DataBase, Depends(DataBase)],
+    brand_report_id: str,
+    limit: int = 20,
+    page: int = 1,
+):
+    offset = (page - 1) * limit
+    results = db.get_reports(brand_report_id, limit, offset)
+    return results
+
+
 @router.get("/outputs")
 def get_outputs(
     prompt_id: str,

@@ -40,6 +40,7 @@ class ClickHouse:
                 db.Column("position", Int64),
                 db.Column("date", DateTime),
                 db.Column("model", String),
+                db.Column("prompt_id", String),
                 MergeTree(order_by="date"),
             )
             table.create(conn, checkfirst=True)
@@ -57,6 +58,22 @@ class ClickHouse:
             return None
         self.client.insert_df(self.table, df=df, database="default")
 
+    def get_info(
+        self, brand_report_id: str, prompt_id: str, model: str, date: str
+    ) -> list[dict]:
+        """Get mention and position from the db"""
+        stmt = f"""
+        SELECT *
+        FROM `default`.`brands`
+        WHERE `brand_report_id` = '{brand_report_id}'
+        AND `prompt_id` = '{prompt_id}'
+        AND `model` = '{model}'
+        AND `date` = '{date}'
+        """
+        query = self.client.query(stmt)
+        outputs = list(query.named_results())
+        return outputs
+
     def get_brand_mention(
         self,
         brand: str,
@@ -65,7 +82,6 @@ class ClickHouse:
         model: str,
         start_date: str,
     ) -> dict:
-        print(start_date, end_date)
         stmt = f"""
             SELECT SUM(mention_count) AS total_mentions
             FROM default.brands

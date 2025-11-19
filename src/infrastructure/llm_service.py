@@ -2,18 +2,21 @@ import sys
 
 sys.path.append(".")
 
-from urllib.parse import urlparse
-from google import genai
-from src.infrastructure.aws_storage import AWSStorage
-from src.infrastructure.database import DataBase
-from src.infrastructure.prompt import (
-    SENTIMENT_SYSTEM_PROMPT,
-    SYSTEM_PROMPT,
-    get_sentiment_user_prompt,
-    get_user_prompt,
-)
 import json
+import logging
+from urllib.parse import urlparse
 
+import markdown2
+from dateparser import parse
+from google import genai
+from google.genai.types import GenerateContentConfig
+from markdownify import markdownify as md
+from selectolax.parser import HTMLParser
+
+from src.config import config
+from src.infrastructure.aws_storage import AWSStorage
+from src.infrastructure.click_house import ClickHouse
+from src.infrastructure.database import DataBase
 from src.infrastructure.models import (
     Brand_Metrics,
     Citations,
@@ -21,14 +24,12 @@ from src.infrastructure.models import (
     SentimentBody,
     Sentiments,
 )
-import markdown2
-from markdownify import markdownify as md
-from src.config import config
-from google.genai.types import GenerateContentConfig
-import logging
-from selectolax.parser import HTMLParser
-from src.infrastructure.click_house import ClickHouse
-from dateparser import parse
+from src.infrastructure.prompt import (
+    SENTIMENT_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+    get_sentiment_user_prompt,
+    get_user_prompt,
+)
 
 
 class LLMService:
@@ -108,6 +109,7 @@ class LLMService:
             parsed_results.append(
                 {
                     "brand_report_id": self.brand_report_id,
+                    "prompt_id": self.prompt_id,
                     "brand": result.brand,
                     "mention_count": result.mention_count,
                     "position": result.position,

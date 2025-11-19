@@ -3,17 +3,19 @@ import sys
 sys.path.append("..")
 
 import json
-from sqlmodel import Session, create_engine, select, and_
-from src.infrastructure.models import (
-    Output_Reports,
-    SQLModel,
-    Citations,
-    Sentiments,
-)
-from src.config import config
+from datetime import date, datetime, timedelta
 from typing import Optional
+
 import dateparser
-from datetime import datetime, timedelta, date
+from sqlmodel import Session, and_, create_engine, select
+
+from src.config import config
+from src.infrastructure.models import (
+    Citations,
+    Output_Reports,
+    Sentiments,
+    SQLModel,
+)
 
 
 class DataBase:
@@ -45,6 +47,23 @@ class DataBase:
             session.add(output_report)
             session.commit()
             session.close()
+
+    def get_reports(
+        self, brand_report_id: str, limit: int = 20, offset: int = 0
+    ) -> list[dict]:
+        """Get all the reports from the output_reports table"""
+        with Session(self.engine) as session:
+            stmt = (
+                select(Output_Reports)
+                .where(Output_Reports.brand_report_id == brand_report_id)
+                .limit(limit)
+                .offset(offset)
+            )
+            results = session.exec(stmt).all()
+            session.close()
+
+        reports = [json.loads(result.model_dump_json()) for result in results]
+        return reports
 
     def get_report_outputs(
         self,
