@@ -102,14 +102,13 @@ def get_outputs(
             date,
             model,
         )
-        print(report)
         if not report:
             raise HTTPException(status_code=404, detail="Output report not found")
 
         # Generate AWS S3 pre-signed URLs
         print("GETTING PRESIGNED URLS")
         snapshot_url = aws_storage.get_presigned_url(report["snapshot"])
-        markdown_url = aws_storage.get_presigned_url(report["markdown"])
+        markdown = aws_storage.get_file_content(report["markdown"])
         print("URLS GOTTEN")
 
         # Retrieve all unique available dates according to max_date
@@ -119,7 +118,7 @@ def get_outputs(
 
         return {
             "snapshot_url": snapshot_url,
-            "markdown": markdown_url,
+            "markdown": markdown,
             "available_dates": available_dates,
         }
     except HTTPException as _:
