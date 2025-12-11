@@ -64,11 +64,11 @@ class ClickHouse:
         """Get mention and position from the db"""
         stmt = f"""
         SELECT *
-        FROM `default`.`brands`
-        WHERE `brand_report_id` = '{brand_report_id}'
-        AND `prompt_id` = '{prompt_id}'
-        AND `model` = '{model}'
-        AND `date` = '{date}'
+        FROM default.brands
+        WHERE brand_report_id = '{brand_report_id}'
+        AND prompt_id = '{prompt_id}'
+        AND model = '{model}'
+        AND date = '{date}'
         """
         query = self.client.query(stmt)
         outputs = list(query.named_results())
@@ -87,9 +87,8 @@ class ClickHouse:
             FROM default.brands
             WHERE brand = '{brand}'
               AND brand_report_id = '{brand_report_id}'
-              AND date <= '{start_date}' AND date >= '{end_date}'
+              AND date <= '{end_date}' AND date >= '{start_date}'
               {"AND model = '" + model + "'" if model != "all" else ""}
-            GROUP BY date
         """
         query = self.client.query(stmt)
         if not query.row_count:
@@ -110,7 +109,7 @@ class ClickHouse:
                  / SUM(mention_count)) * 100 AS sov,  toDateTime(date) AS date
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
-                AND date <= '{start_date}' AND date >= '{end_date}'
+                AND date <= '{end_date}' AND date >= '{start_date}'
                 {"AND model = '" + model + "'" if model != "all" else ""}
             GROUP BY date
         """
@@ -133,7 +132,7 @@ class ClickHouse:
                 countIf(mention_count >= 1 AND brand = '{brand}') AS mentioned_rows
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
-                AND date <= '{start_date}' AND date >= '{end_date}'
+                AND date <= '{end_date}' AND date >= '{start_date}'
                 {"AND model = '" + model + "'" if model != "all" else ""}
         """
 
@@ -158,14 +157,14 @@ class ClickHouse:
                 sumIf(brands.position, brands.brand = '{brand}') as brand_position
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
-              AND date <= '{start_date}' AND date >= '{end_date}'
+                AND date <= '{end_date}' AND date >= '{start_date}'
               {"AND model = '" + model + "'" if model != "all" else ""}
         """
         result = self.client.query(stmt).first_item
         all_positions = result.get("all_position") or 0
         brand_position = result.get("brand_position") or 0
-        print(all_positions, brand_position)
-
+        if (brand_position == 0) or (all_positions == 0):
+            return {"data": 0}
         position = brand_position / all_positions
         return {"data": position}
 
@@ -180,7 +179,7 @@ class ClickHouse:
             SELECT brands.brand, SUM(brands.mention_count) as total_mentions
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
-              AND date <= '{start_date}' AND date >= '{end_date}'
+                AND date <= '{end_date}' AND date >= '{start_date}'
               {"AND model = '" + model + "'" if model != "all" else ""}
             GROUP BY brands.brand
             ORDER BY total_mentions DESCENDING
@@ -228,7 +227,7 @@ class ClickHouse:
                 SUM(brands.mention_count) AS total_mentions
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
-            AND date <= '{start_date}' AND date >= '{end_date}'
+            AND date <= '{end_date}' AND date >= '{start_date}'
             {"AND model = '" + model + "'" if model != "all" else ""}
             GROUP BY date, brands.brand
             ORDER BY date ASC, total_mentions DESC

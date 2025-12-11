@@ -45,6 +45,7 @@ def brand_mentions(
     arguments: Annotated[dict, Depends(common_parameters)],
     clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
 ):
+    print(arguments)
     try:
         result = clickhouse.get_brand_mention(
             brand=arguments["brand"],
