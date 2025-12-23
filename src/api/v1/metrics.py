@@ -22,14 +22,10 @@ def get_date() -> str:
 def common_parameters(
     brand: str,
     brand_report_id: str,
-    end_date: str = "",
-    start_date: str = "",
+    end_date: str = get_date(),
+    start_date: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     model: str = "all",
 ):
-    end_date = end_date if end_date else get_date()
-    start_date = (
-        start_date if start_date else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    )
     return {
         "brand": brand,
         "brand_report_id": brand_report_id,
@@ -45,7 +41,6 @@ def brand_mentions(
     arguments: Annotated[dict, Depends(common_parameters)],
     clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
 ):
-    print(arguments)
     try:
         result = clickhouse.get_brand_mention(
             brand=arguments["brand"],
