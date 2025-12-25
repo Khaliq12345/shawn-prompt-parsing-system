@@ -102,9 +102,11 @@ class DataBase:
 
                 date = latest_date
 
+            print(date)
             # Base query
             statement = select(Output_Reports).where(
                 Output_Reports.brand_report_id == brand_report_id,
+                Output_Reports.prompt_id == prompt_id,
                 Output_Reports.date == date,
             )
 
@@ -114,10 +116,10 @@ class DataBase:
 
             result = session.exec(statement).first()
 
+            session.close()
+
             if not result:
                 return None
-
-            session.close()
 
             return {"snapshot": result.snapshot, "markdown": result.markdown}
 
