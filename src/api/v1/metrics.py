@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated
 
 import dateparser
@@ -22,7 +22,7 @@ def get_date() -> str:
 def common_parameters(
     brand: str,
     brand_report_id: str,
-    end_date: str = datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    end_date: str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"),
     start_date: str = get_date(),
     model: str = "all",
 ):
