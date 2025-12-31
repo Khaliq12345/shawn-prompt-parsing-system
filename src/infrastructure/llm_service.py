@@ -1,4 +1,5 @@
 import sys
+import re
 
 sys.path.append(".")
 
@@ -7,10 +8,10 @@ import logging
 from urllib.parse import urlparse
 
 import markdown2
+from markdownify import markdownify as md
 from dateparser import parse
 from google import genai
 from google.genai.types import GenerateContentConfig
-from markdownify import markdownify as md
 from selectolax.parser import HTMLParser
 
 from src.config import config
@@ -61,6 +62,7 @@ class LLMService:
         self.storage = AWSStorage()
         self.content = ""
         self.clean_content = ""
+        self.google_citations = ""
         # initialise db
         self.database = DataBase()
         # initialise clickhouse
@@ -68,9 +70,24 @@ class LLMService:
         # initialise logger
         self.logger = logger
 
-    def clean_markdown(self, content: str) -> str:
+    def google_content_splitter(self):
+        """
+        Converts markdown to HTML and separates citations.
+        """
+        # Split content and citations at "*   []"
+        citation_pattern = r'\*\s+\[\]'
+        if not self.content:
+            return None
+        parts = re.split(citation_pattern, self.content, maxsplit=1)
+        
+        self.content = parts[0].strip()
+        self.google_citations = parts[1].strip() if len(parts) > 1 else ""
+
+    def clean_markdown(self) -> str:
         self.logger.info("Cleaning Content")
-        html_content = markdown2.markdown(content)
+        if not self.content:
+            return ""
+        html_content = markdown2.markdown(self.content)
         cleaned_markdown = md(
             html_content,
             strip=[
@@ -177,7 +194,10 @@ class LLMService:
         """Convert markdown to html and extract links"""
         self.logger.info("Getting the citations")
         citations = []
-        html_content = markdown2.markdown(self.clean_content)
+        if self.model == "Google":
+            html_content = markdown2.markdown(f"{self.content} {self.google_citations}") if self.content else ""
+        else:
+            html_content = markdown2.markdown(self.content) if self.content else ""
         html = HTMLParser(html_content)
         link_nodes = html.css("a")
         for i, link_node in enumerate(link_nodes):
@@ -187,6 +207,8 @@ class LLMService:
             title = link.text(separator=" ")
             link = link.attributes.get("href")
             domain = urlparse(link).netloc if link else None
+            if domain == "www.google.com":
+                continue 
             parsed = urlparse(link)
             clean_url = clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
             citation = Citations(
@@ -201,6 +223,7 @@ class LLMService:
                 norm_url=clean_url,
             )
             citations.append(citation)
+
         print(f"Found -> {len(citations)} citations")
         # once citations have been validated then save
         self.database.save_citations(citations)
@@ -211,12 +234,14 @@ class LLMService:
         # download the content from s3
 
         self.logger.info("Downloaiding content from S3")
-        content = self.storage.get_file_content(self.text_key)
-        if not content:
+        self.content = self.storage.get_file_content(self.text_key)
+        if not self.content:
             return None
 
         # clean the content
-        self.clean_content = self.clean_markdown(content)
+        if self.model == "Google":
+            self.google_content_splitter()
+        self.clean_content = self.clean_markdown()
 
         # get and save parsed data
         self.extract_brand_mentions()
@@ -227,6 +252,13 @@ class LLMService:
 
 # if __name__ == "__main__":
 #     llm_service = LLMService(
-#         "br_12345", "2025-10-05", "Chatgpt", "Nike", "chatgpt/1758754781"
+#         process_id="pr_12345", 
+#         brand_report_id="br_12345", 
+#         prompt_id="pt_12345", 
+#         date="2025-10-05",
+#         model="Chatgpt",
+#         brand="Nike", 
+#         s3_key="chatgpt/chatgpt-brand_report_20-Prompt_201-1766729846",
+#         logger=logging.Logger(name="TESTING: ")
 #     )
 #     llm_service.main()

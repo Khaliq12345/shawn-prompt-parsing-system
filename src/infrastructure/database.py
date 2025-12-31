@@ -263,7 +263,7 @@ class DataBase:
 
     # ------------------------DOMAIN-----------------------------------
 
-    def get_domain_citation(
+    def get_markdown_s3_keys(
         self,
         brand_report_id: str,
         start_date: str,

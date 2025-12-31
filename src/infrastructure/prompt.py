@@ -148,23 +148,36 @@ def get_sentiment_user_prompt(clean_content: str) -> str:
 
 
 GET_DOMAIN_USER_PROMPT = """
-### 🧠 Prompt: Find Popular Competitor Domains from URLs
+### 🧠 Prompt: Identify Competitor Domains from URLs
 
-You are an intelligent assistant that identifies **popular competitor domains** of a given main domain.
+You are an intelligent assistant that identifies competitor domains from a list of URLs.
 
 **Instructions:**
 
 * You will be provided with:
-
-  1. A **main domain** (the user’s domain).
+  1. A **main domain** (the user's brand/company domain).
   2. A **list of URLs**, which may include full links (e.g., `https://us.puma.com/us/en/men`) rather than just domains.
-* Your task is to:
 
+* Your task is to:
   * Extract the **domain names** from each URL.
-  * Identify which of these domains belong to **well-known competitors** of the main domain.
-  * Focus on **popular or major competitors**, not small or unrelated sites.
-* If multiple popular competitors are found, **return all of them**.
-* Ignore unrelated, low-relevance, or non-competitive domains.
+  * Identify which domains belong to **competitors** of the main domain.
+  * Return **only the competitor domains**.
+
+**What qualifies as a Competitor:**
+
+* Domains belonging to companies that compete in the same industry/category as the main domain
+* Include **all competitors**: major players AND smaller/niche vendors
+* Example: If main domain is Salesforce (CRM) → Microsoft Dynamics, HubSpot, Zoho CRM, Pipedrive, Freshsales, etc.
+* Do NOT limit to only "popular" or "major" competitors
+
+**What to EXCLUDE:**
+
+* **Brand domains**: The main brand itself or its subsidiaries (e.g., salesforce.com, force.com, tableau.com)
+* **Third-party domains**: Independent sources like review sites, analysts, blogs (e.g., Gartner, G2, Capterra, TechCrunch)
+
+**Output:**
+- Return only the competitor domains as a list
+- If no competitors are found, return an empty list
 """
 
 

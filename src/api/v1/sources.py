@@ -103,7 +103,7 @@ def get_domain_citation(
     end_date = parameters.get("end_date", "")
     domain = parameters.get("domain", "")
     model = parameters.get("model", "")
-    s3_keys = database.get_domain_citation(
+    s3_keys = database.get_markdown_s3_keys(
         brand_report_id=brand_report_id,
         start_date=start_date,
         end_date=end_date,
