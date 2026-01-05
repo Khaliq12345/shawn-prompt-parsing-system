@@ -127,6 +127,8 @@ def get_domain_citation(
 
     url_records = extract_url_data(markdown)
     for url_record in url_records:
+        if url_record["domain"] == "google.com":
+            continue
         if url_record["domain"] == domain:
             response_output["domain"] = url_record
         elif url_record["domain"] in competitor_domains:
