@@ -125,7 +125,7 @@ class DataBase:
 
     def get_citations(
         self,
-        brand_report_id: str,
+        prompt_id: str,
         date: Optional[str] = None,
         model: str = "all",
     ) -> list[dict]:
@@ -144,7 +144,7 @@ class DataBase:
             if date is None:
                 latest_date = session.exec(
                     select(Citations.date)
-                    .where(Citations.brand_report_id == brand_report_id)
+                    .where(Citations.prompt_id == prompt_id)
                     .order_by(Citations.date.desc())
                 ).first()
 
@@ -154,7 +154,7 @@ class DataBase:
                 date = latest_date
 
             statement = select(Citations).where(
-                Citations.brand_report_id == brand_report_id,
+                Citations.prompt_id == prompt_id,
                 Citations.date == date,
             )
 
@@ -169,7 +169,7 @@ class DataBase:
 
     def get_sentiments(
         self,
-        brand_report_id: str,
+        prompt_id: str,
         date: Optional[str] = None,
         model: str = "all",
     ) -> list[dict]:
@@ -188,7 +188,7 @@ class DataBase:
             if date is None:
                 latest_date = session.exec(
                     select(Sentiments.date)
-                    .where(Sentiments.brand_report_id == brand_report_id)
+                    .where(Sentiments.prompt_id == prompt_id)
                     .order_by(Sentiments.date.desc())
                 ).first()
 
@@ -198,7 +198,7 @@ class DataBase:
                 date = latest_date
 
             statement = select(Sentiments).where(
-                Sentiments.brand_report_id == brand_report_id,
+                Sentiments.prompt_id == prompt_id,
                 Sentiments.date == date,
             )
 
@@ -211,7 +211,7 @@ class DataBase:
         sentiments = [json.loads(result.model_dump_json()) for result in results]
         return sentiments
 
-    def get_report_dates(self, max_dates: str = "7 days ago") -> list[str]:
+    def get_report_dates(self, prompt_id: str, max_dates: str = "7 days ago") -> list[str]:
         """
         Retrieve all unique report dates from Output_Reports table,
         greater than or equal to the given max_dates.
@@ -238,7 +238,7 @@ class DataBase:
             # Build the SQL query to fetch all dates >= start_date
             statement = (
                 select(Output_Reports.date)
-                .where(Output_Reports.date >= start_date)
+                .where(and_(Output_Reports.date >= start_date, Output_Reports.prompt_id == prompt_id))
                 .order_by(Output_Reports.date.desc())
             )
 

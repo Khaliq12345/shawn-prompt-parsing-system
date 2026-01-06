@@ -177,6 +177,7 @@ class LLMService:
                 Sentiments(
                     id=f"{self.process_id}-{idx}",
                     brand_report_id=self.brand_report_id,
+                    prompt_id=self.prompt_id,
                     date=self.date,
                     model=self.model,
                     brand=sentiment.brand,
@@ -214,6 +215,7 @@ class LLMService:
             citation = Citations(
                 id=f"{self.process_id}-{i}",
                 brand_report_id=self.brand_report_id,
+                prompt_id=self.prompt_id,
                 date=self.date,
                 model=self.model,
                 brand=self.brand,

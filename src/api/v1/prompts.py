@@ -113,7 +113,7 @@ def get_outputs(
 
         # Retrieve all unique available dates according to max_date
         print("GETTING ALL DATES")
-        available_dates = db.get_report_dates(max_dates=max_date)
+        available_dates = db.get_report_dates(max_dates=max_date, prompt_id=prompt_id)
         print("ALL DATES RETRIEVED")
 
         return {
@@ -129,15 +129,17 @@ def get_outputs(
 
 @router.get("/citations")
 def get_citations(
-    arguments: Annotated[dict, Depends(common_parameters)],
     db: Annotated[DataBase, Depends(DataBase)],
+    prompt_id: str,
+    date: str,
+    model: str
 ):
     """
     Retrieve citations for a given report.
     """
     try:
         citations = db.get_citations(
-            arguments["brand_report_id"], arguments["date"], arguments["model"]
+            prompt_id, date, model
         )
         return {"citations": citations}
     except Exception as e:

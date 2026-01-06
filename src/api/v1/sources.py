@@ -112,6 +112,7 @@ def get_domain_citation(
 
     markdown = ""
     coverage_num = 0
+    citation_count = 0
     response_output = {"domain": None, "competitor_domains": [], "external_domains": []}
     for s3_key in s3_keys:
         print(f"LOADING KEY - {s3_key}")
@@ -131,6 +132,7 @@ def get_domain_citation(
             continue
         if url_record["domain"] == domain:
             response_output["domain"] = url_record
+            citation_count += 1
         elif url_record["domain"] in competitor_domains:
             response_output["competitor_domains"].append(url_record)
         else:
@@ -140,7 +142,7 @@ def get_domain_citation(
     coverage = round(coverage, 2)
     return {
         "details": {
-            "citation": len(matches),
+            "citation": citation_count,
             "coverage": coverage,
             "url_data": response_output,
         }
