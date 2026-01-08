@@ -13,6 +13,7 @@ class SentimentBody(BaseModel):
 class Sentiments(SQLModel, table=True):
     id: str = Field(primary_key=True)
     brand_report_id: str
+    prompt_id: str
     date: str
     model: str
     brand: str
