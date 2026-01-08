@@ -148,8 +148,10 @@ def get_citations(
 
 @router.get("/sentiments")
 def get_sentiments(
-    arguments: Annotated[dict, Depends(common_parameters)],
     db: Annotated[DataBase, Depends(DataBase)],
+    prompt_id: str,
+    date: str,
+    model: str
 ):
     """
     Retrieve sentiment analysis results for a given report.
@@ -157,7 +159,7 @@ def get_sentiments(
     """
     try:
         sentiments = db.get_sentiments(
-            arguments["brand_report_id"], arguments["date"], arguments["model"]
+            prompt_id, date, model
         )
 
         for sentiment in sentiments:
