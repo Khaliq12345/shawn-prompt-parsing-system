@@ -5,7 +5,7 @@ load_dotenv()
 
 # Gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash")
+MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
 BUCKET_NAME = os.getenv("BUCKET_NAME", "browser-outputs")
 # Database
 DB_USER = os.getenv("DB_USER")

@@ -15,6 +15,7 @@ from src.infrastructure.models import (
     Output_Reports,
     Sentiments,
     SQLModel,
+    Token_Reports,
 )
 
 
@@ -23,6 +24,7 @@ class DataBase:
         self.engine = create_engine(
             f"postgresql+psycopg://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:5432/{config.DB_NAME}"
         )
+        self.create_all_tables()
 
     def create_all_tables(self):
         SQLModel.metadata.create_all(self.engine)
@@ -45,6 +47,13 @@ class DataBase:
         print("Saving Output report")
         with Session(self.engine) as session:
             session.add(output_report)
+            session.commit()
+            session.close()
+
+    def save_token_usage(self, token_data: Token_Reports) -> None:
+        print("Saving token usage")
+        with Session(self.engine) as session:
+            session.add(token_data)
             session.commit()
             session.close()
 
@@ -211,7 +220,9 @@ class DataBase:
         sentiments = [json.loads(result.model_dump_json()) for result in results]
         return sentiments
 
-    def get_report_dates(self, prompt_id: str, max_dates: str = "7 days ago") -> list[str]:
+    def get_report_dates(
+        self, prompt_id: str, max_dates: str = "7 days ago"
+    ) -> list[str]:
         """
         Retrieve all unique report dates from Output_Reports table,
         greater than or equal to the given max_dates.
@@ -238,7 +249,12 @@ class DataBase:
             # Build the SQL query to fetch all dates >= start_date
             statement = (
                 select(Output_Reports.date)
-                .where(and_(Output_Reports.date >= start_date, Output_Reports.prompt_id == prompt_id))
+                .where(
+                    and_(
+                        Output_Reports.date >= start_date,
+                        Output_Reports.prompt_id == prompt_id,
+                    )
+                )
                 .order_by(Output_Reports.date.desc())
             )
 
@@ -251,9 +267,11 @@ class DataBase:
 
             # Normalize all values into "YYYY-MM-DD" formatted strings
             unique_dates_str = [
-                unique_date.strftime("%Y-%m-%d")
-                if isinstance(unique_date, (datetime, date))
-                else str(unique_date)
+                (
+                    unique_date.strftime("%Y-%m-%d")
+                    if isinstance(unique_date, (datetime, date))
+                    else str(unique_date)
+                )
                 for unique_date in unique_dates
             ]
 

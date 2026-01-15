@@ -45,6 +45,18 @@ class Output_Reports(SQLModel, table=True):
     markdown: str
 
 
+class Token_Reports(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    brand_report_id: str
+    prompt_id: str
+    date: str
+    model: str
+    prompt_token_count: int
+    output_token_count: int
+    total_token_count: int
+    action: str
+
+
 class Brand_Metrics(BaseModel):
     brand: str
     mention_count: int

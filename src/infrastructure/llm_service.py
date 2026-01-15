@@ -6,7 +6,7 @@ sys.path.append(".")
 import json
 import logging
 from urllib.parse import urlparse
-
+import time
 import markdown2
 from markdownify import markdownify as md
 from dateparser import parse
@@ -24,6 +24,7 @@ from src.infrastructure.models import (
     Output_Reports,
     SentimentBody,
     Sentiments,
+    Token_Reports,
 )
 from src.infrastructure.prompt import (
     SENTIMENT_SYSTEM_PROMPT,
@@ -44,6 +45,7 @@ class LLMService:
         brand: str,
         s3_key: str,
         logger: logging.Logger,
+        save_to_db: bool = True,
     ) -> None:
         # report ids
         self.process_id = process_id
@@ -69,17 +71,19 @@ class LLMService:
         self.clickhouse = ClickHouse()
         # initialise logger
         self.logger = logger
+        self.save_to_db = save_to_db
+        print(config.MODEL_NAME)
 
     def google_content_splitter(self):
         """
         Converts markdown to HTML and separates citations.
         """
         # Split content and citations at "*   []"
-        citation_pattern = r'\*\s+\[\]'
+        citation_pattern = r"\*\s+\[\]"
         if not self.content:
             return None
         parts = re.split(citation_pattern, self.content, maxsplit=1)
-        
+
         self.content = parts[0].strip()
         self.google_citations = parts[1].strip() if len(parts) > 1 else ""
 
@@ -117,9 +121,26 @@ class LLMService:
                 ],
             ),
         )
+        # Access the usage metadata
+        usage = response.usage_metadata
+        if usage:
+            token_data = Token_Reports(
+                id=str(time.time_ns()),
+                brand_report_id=self.brand_report_id,
+                prompt_id=self.prompt_id,
+                date=self.date,
+                model=self.model,
+                total_token_count=getattr(usage, "total_token_count", 0),
+                prompt_token_count=getattr(usage, "prompt_token_count", 0),
+                output_token_count=getattr(usage, "candidates_token_count", 0),
+                action="get_brand_mentions",
+            )
+            self.database.save_token_usage(token_data)
+
         # validating and saving to clickhouse
         results = json.loads(response.model_dump_json())
         results = response.parsed if response else []
+        print(results)
         if not isinstance(results, list):
             return None
         for result in results:
@@ -134,7 +155,8 @@ class LLMService:
                     "model": self.model,
                 }
             )
-        self.clickhouse.insert_into_db(parsed_results)
+        if self.save_to_db:
+            self.clickhouse.insert_into_db(parsed_results)
 
     def save_brand_report_output(self):
         """Get the brand report outputs"""
@@ -150,7 +172,8 @@ class LLMService:
         )
 
         # saving the output report
-        self.database.save_output_reports(output_report)
+        if self.save_to_db:
+            self.database.save_output_reports(output_report)
 
     def get_sentiments(self):
         """Get the sentiment with LLM"""
@@ -167,9 +190,26 @@ class LLMService:
                 ],
             ),
         )
+        # Access the usage metadata
+        usage = response.usage_metadata
+        if usage:
+            token_data = Token_Reports(
+                id=str(time.time_ns()),
+                brand_report_id=self.brand_report_id,
+                prompt_id=self.prompt_id,
+                date=self.date,
+                model=self.model,
+                total_token_count=getattr(usage, "total_token_count", 0),
+                prompt_token_count=getattr(usage, "prompt_token_count", 0),
+                output_token_count=getattr(usage, "candidates_token_count", 0),
+                action="get_sentiments",
+            )
+            self.database.save_token_usage(token_data)
 
         # Validate sentiments
         sentiments = response.parsed if response.parsed else []
+
+        print(sentiments)
         if not isinstance(sentiments, list):
             return None
         for idx, sentiment in enumerate(sentiments):
@@ -188,7 +228,8 @@ class LLMService:
             )
 
         # save the sentiments
-        self.database.save_sentiments(parsed_sentiments)
+        if self.save_to_db:
+            self.database.save_sentiments(parsed_sentiments)
         return None
 
     def get_citations(self):
@@ -196,7 +237,11 @@ class LLMService:
         self.logger.info("Getting the citations")
         citations = []
         if self.model == "Google":
-            html_content = markdown2.markdown(f"{self.content} {self.google_citations}") if self.content else ""
+            html_content = (
+                markdown2.markdown(f"{self.content} {self.google_citations}")
+                if self.content
+                else ""
+            )
         else:
             html_content = markdown2.markdown(self.content) if self.content else ""
         html = HTMLParser(html_content)
@@ -209,7 +254,7 @@ class LLMService:
             link = link.attributes.get("href")
             domain = urlparse(link).netloc if link else None
             if domain == "www.google.com":
-                continue 
+                continue
             parsed = urlparse(link)
             clean_url = clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
             citation = Citations(
@@ -228,7 +273,8 @@ class LLMService:
 
         print(f"Found -> {len(citations)} citations")
         # once citations have been validated then save
-        self.database.save_citations(citations)
+        if self.save_to_db:
+            self.database.save_citations(citations)
 
     def main(self) -> None:
         """Start the whole parser workflow"""
@@ -252,15 +298,16 @@ class LLMService:
         self.save_brand_report_output()
 
 
-# if __name__ == "__main__":
-#     llm_service = LLMService(
-#         process_id="pr_12345", 
-#         brand_report_id="br_12345", 
-#         prompt_id="pt_12345", 
-#         date="2025-10-05",
-#         model="Chatgpt",
-#         brand="Nike", 
-#         s3_key="chatgpt/chatgpt-brand_report_20-Prompt_201-1766729846",
-#         logger=logging.Logger(name="TESTING: ")
-#     )
-#     llm_service.main()
+if __name__ == "__main__":
+    llm_service = LLMService(
+        save_to_db=False,
+        process_id=str(time.time_ns()),
+        brand_report_id="br_12345",
+        prompt_id="pt_12345",
+        date="2025-10-05",
+        model="Chatgpt",
+        brand="Nike",
+        s3_key="chatgpt/chatgpt-brand_report_0-Prompt_1-1767629700",
+        logger=logging.Logger(name="TESTING: "),
+    )
+    llm_service.main()

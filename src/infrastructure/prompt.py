@@ -75,6 +75,8 @@ Scope & Matching
 Position Output
     For each brand, record the position (starting from 1) based on the first occurrence of that brand relative to other brands.
     Example: If Zendesk appears before Salesforce, Zendesk position = 1, Salesforce position = 2.
+
+MAKE SURE TO GENERATE A JSON ARRAY. THE OUTPUT MUST BE A SINGLE LINE, COMPACT JSON STRING WITH NO PRETTY PRINTING OR LINE BREAKS.
 """
 
 USER_PROMPT = """
@@ -118,6 +120,9 @@ Explanation:
     - Salesforce Service Cloud → +1
     - Second Zendesk (outside brand block) → +1
     - Freshdesk → +1
+
+
+MAKE SURE TO GENERATE A JSON ARRAY. THE OUTPUT MUST BE A SINGLE LINE, COMPACT JSON STRING WITH NO PRETTY PRINTING OR LINE BREAKS
 
 Now analyze the following markdown:
 """
@@ -173,6 +178,8 @@ Always return results in **strict JSON** format, structured exactly as follows:
       "negative_phrases": []
     },
 ]
+
+MAKE SURE TO GENERATE A JSON ARRAY. THE OUTPUT MUST BE A SINGLE LINE, COMPACT JSON STRING WITH NO PRETTY PRINTING OR LINE BREAKS
 """
 
 SENTIMENT_USER_PROMPT = """
@@ -183,6 +190,9 @@ Your task is to parse this text and return results strictly in the JSON format d
 - Detect all **brands** and, if mentioned, their **models**.
 - Extract short descriptive snippets (phrases) that describe performance, comfort, quality, durability, or design.
 - Classify each phrase as 🟢 Positive or 🔴 Negative.
+
+
+MAKE SURE TO GENERATE A JSON ARRAY. THE OUTPUT MUST BE A SINGLE LINE, COMPACT JSON STRING WITH NO PRETTY PRINTING OR LINE BREAKS
 """
 
 
@@ -225,6 +235,9 @@ You are an intelligent assistant that identifies competitor domains from a list 
 **Output:**
 - Return only the competitor domains as a list
 - If no competitors are found, return an empty list
+
+
+MAKE SURE TO GENERATE A JSON ARRAY. THE OUTPUT MUST BE A SINGLE LINE, COMPACT JSON STRING WITH NO PRETTY PRINTING OR LINE BREAKS
 """
 
 
