@@ -25,6 +25,7 @@ from src.infrastructure.models import (
     SentimentBody,
     Sentiments,
     Token_Reports,
+    Brand_List,
 )
 from src.infrastructure.prompt import (
     SENTIMENT_SYSTEM_PROMPT,
@@ -74,6 +75,31 @@ class LLMService:
         self.save_to_db = save_to_db
         print(config.MODEL_NAME)
 
+    def count_word_with_apostrophe(self, word: str):
+        """
+        Count occurrences of a word in text, including the word with 's
+        """
+        # \b ensures we match whole words only
+        pattern = r"\b" + re.escape(word) + r"('s)?\b"
+
+        # Find all matches (case-insensitive)
+        matches = re.findall(pattern, self.clean_content, re.IGNORECASE)
+        return len(matches)
+
+    def remove_links(self):
+        """
+        Remove all URLs from text
+        """
+        # Pattern to match URLs (http, https, ftp, www, and common domain patterns)
+        url_pattern = r'https?://\S+|www\.\S+|ftp://\S+'
+        
+        # Remove URLs
+        text_without_urls = re.sub(url_pattern, '', self.clean_content)
+        
+        # Clean up extra whitespace that might be left behind
+        text_without_urls = re.sub(r'\s+', ' ', text_without_urls).strip() 
+        return text_without_urls
+
     def google_content_splitter(self):
         """
         Converts markdown to HTML and separates citations.
@@ -110,12 +136,16 @@ class LLMService:
     def extract_brand_mentions(self):
         logging.info("- Starting the LLM prompt parsing system")
         parsed_results = []
+        content = self.remove_links()
+        if self.model == 'Google':
+            content = content.split('Show all')[0]
+
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
-            contents=get_user_prompt(self.clean_content),
+            contents=get_user_prompt(content),
             config=GenerateContentConfig(
                 response_mime_type="application/json",
-                response_schema=list[Brand_Metrics],
+                response_schema=list[Brand_List],
                 system_instruction=[
                     SYSTEM_PROMPT,
                 ],
@@ -135,26 +165,32 @@ class LLMService:
                 output_token_count=getattr(usage, "candidates_token_count", 0),
                 action="get_brand_mentions",
             )
-            self.database.save_token_usage(token_data)
+            if self.save_to_db:
+                self.database.save_token_usage(token_data)
 
-        # validating and saving to clickhouse
+        # validating
         results = json.loads(response.model_dump_json())
         results = response.parsed if response else []
-        print(results)
         if not isinstance(results, list):
             return None
-        for result in results:
+
+        # putting it for the brand metrics
+        for brand in results:
+            brand_mention_count = self.count_word_with_apostrophe(brand.brand)
             parsed_results.append(
                 {
                     "brand_report_id": self.brand_report_id,
                     "prompt_id": self.prompt_id,
-                    "brand": result.brand,
-                    "mention_count": result.mention_count,
-                    "position": result.position,
+                    "brand": brand.brand,
+                    "mention_count": brand_mention_count,
+                    "position": brand.position,
                     "date": parse(self.date),
                     "model": self.model,
                 }
             )
+
+        # Save to database
+        print(parsed_results)
         if self.save_to_db:
             self.clickhouse.insert_into_db(parsed_results)
 
@@ -293,9 +329,9 @@ class LLMService:
 
         # get and save parsed data
         self.extract_brand_mentions()
-        self.get_citations()
-        self.get_sentiments()
-        self.save_brand_report_output()
+        # self.get_citations()
+        # self.get_sentiments()
+        # self.save_brand_report_output()
 
 
 if __name__ == "__main__":
@@ -305,9 +341,9 @@ if __name__ == "__main__":
         brand_report_id="br_12345",
         prompt_id="pt_12345",
         date="2025-10-05",
-        model="Chatgpt",
+        model="Google",
         brand="Nike",
-        s3_key="chatgpt/chatgpt-brand_report_0-Prompt_1-1767629700",
+        s3_key="google/google-brand_report_20-Prompt_201-1767635315",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()

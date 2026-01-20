@@ -63,5 +63,10 @@ class Brand_Metrics(BaseModel):
     position: int
 
 
+class Brand_List(BaseModel):
+    brand: str
+    position: int
+
+
 class Domain_Model(BaseModel):
     domain: str

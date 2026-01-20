@@ -1,129 +1,36 @@
 SYSTEM_PROMPT = """
-You are an assistant that calculates Brand Counts and Positions in AI-generated responses.
-Follow these rules carefully:
+You are a Brand Mention Extraction Engine for AI-generated answers.
 
-Definitions
-    Brand Count = The total number of distinct textual occurrences where a brand is explicitly referenced as an entity in the final rendered AI answer text.
-    Unit/Type: Integer (count).
-    Brand Position = The sequential order of each brand's first appearance relative to other brands in the main answer text (starting from 1).
+TASK
+Extract brand entities mentioned in the provided AI answer text, then return mention counts.
 
-Core Counting Rules
-    1. Count only explicit brand-name mentions
-        - Examples: Zendesk, Zendesk Inc, Zendesk (company)
-        - Must include the actual brand name in text
-        - Case-insensitive and diacritics-insensitive
-    
-    2. Each distinct textual occurrence = +1
-        - Count literal appearances of the brand as separate references
-        - Section, paragraph, or intent does not matter
-    
-    3. Do NOT infer brands
-        - Product-only mentions do NOT count (e.g., "Answer Bot" ≠ Zendesk)
-        - Feature-only mentions do NOT count
-        - Implied ownership is ignored
+DEFINITIONS
+- A "brand" is an organization/vendor/company name that represents a product/service provider (e.g., Zendesk, Zoho, Salesforce).
+- Do NOT treat generic terms (e.g., "CRM", "SMB", "AI", "helpdesk", "ticketing") as brands.
+- Do NOT infer a brand when the brand name does not appear in the text.
 
-Brand Block Rule (Critical)
-    If a brand is introduced as the primary subject (e.g., header or root list item), branded product mentions nested under that same brand block do NOT increment Brand Count again.
-    
-    Example:
-        "1. Zendesk
-         - Live chat (via Zendesk Chat)
-         - AI-powered tools (Answer Bot)"
-    
-    Counting:
-        - Zendesk → +1 (primary subject)
-        - Zendesk Chat → 0 (nested under Zendesk brand block)
-        - Answer Bot → 0 (product only, no brand name)
-        Zendesk Brand Count = 1
+VENDOR NORMALIZATION 
+- Output ONLY the vendor/company name as brand_name (e.g., "HubSpot", not "HubSpot Service Hub"; "Zoho", not "Zoho Desk").
+- If a detected name contains a vendor brand as a substring, normalize to the vendor brand.
+  Examples:
+  - "HubSpot Service Hub" -> "HubSpot"
+  - "HubSpot CRM" -> "HubSpot"
+  - "Zoho Desk" -> "Zoho"
+  - "Zoho CRM" -> "Zoho"
+  - "Zendesk Chat" -> "Zendesk"
+- Do NOT output product names or feature/module names as brands (e.g., "Service Hub", "Desk", "Chat", "Freddy AI", "Zia") unless they are standalone vendor/company brands.
+- DO NOT CONFUSE THE PRODUCT NAME AND THE BRAND NAME, for example Freshdesk is a product of Freshworks, so do not give Freshdesk in the output; as it is not the brand name.
+- AGAIN DO NOT CONFUSE THE BRAND NAME WITH THE PRODUCT NAME. Words like <<by>> are used to the indicate the Brand name 
 
-When Branded Products DO Count
-    Branded product names count only if they appear outside an existing brand block (i.e., they function as a new textual reference).
-    
-    Example:
-        "Zendesk is widely used by support teams.
-         Some companies rely heavily on Zendesk Chat for live support."
-    
-    Counting:
-        - First Zendesk → +1
-        - Zendesk Chat (outside brand block) → +1
-        Zendesk Brand Count = 2
 
-Multiple Mentions in One Section
-    If the brand name appears multiple times as separate textual references, each counts.
-    
-    Example:
-        "If deep CRM integration is essential, Salesforce Service Cloud or Zendesk may be best.
-         If existing CRM assets are elsewhere, Zendesk or Freshdesk offer flexibility."
-    
-    Counting:
-        - First Zendesk → +1
-        - Second Zendesk → +1
-        Zendesk Brand Count = 2
+POSITION RULES
+- For each brand, record the position (starting from 1) based on the first occurrence of that brand relative to other brands.
+- Example: If Zendesk appears before Salesforce, Zendesk position = 1, Salesforce position = 2.
 
-What Does NOT Count
-    ❌ Product-only mentions without the brand name (e.g., "Answer Bot")
-    ❌ Feature mentions
-    ❌ Citations, URLs, links, images, metadata
-    ❌ Human-inferred ownership or brand associations
-    ❌ Branded products nested within an existing brand block
-
-Scope & Matching
-    - Scope: Final rendered AI answer text only
-    - Exclude: Citations, footnotes, links, metadata, sources
-    - Matching: Case-insensitive and diacritics-insensitive
-
-Position Output
-    For each brand, record the position (starting from 1) based on the first occurrence of that brand relative to other brands.
-    Example: If Zendesk appears before Salesforce, Zendesk position = 1, Salesforce position = 2.
-
-MAKE SURE TO GENERATE A JSON ARRAY. THE OUTPUT MUST BE A SINGLE LINE, COMPACT JSON STRING WITH NO PRETTY PRINTING OR LINE BREAKS.
+OUTPUT: MAKE SURE TO GENERATE A JSON ARRAY. THE OUTPUT MUST BE A SINGLE LINE, COMPACT JSON STRING WITH NO PRETTY PRINTING OR LINE BREAKS
 """
 
 USER_PROMPT = """
-You are an assistant that calculates Brand Counts and Positions in AI-generated responses.
-
-Count how many times each brand is explicitly mentioned and determine their positions in the following markdown.
-
-Apply these rules:
-    1. Count only explicit brand-name mentions (case-insensitive, diacritics-insensitive)
-    2. Each distinct textual occurrence = +1
-    3. Do NOT count:
-        - Product-only mentions without brand name
-        - Feature mentions
-        - Branded products nested within a brand block
-        - Citations, links, or metadata
-    4. Apply the Brand Block Rule: If a brand introduces a section, nested branded products under that block don't count
-    5. Scope: main answer text only
-    6. Position: based on first occurrence of each brand relative to other brands (not words)
-
-Example Input:
-    "1. Zendesk
-     - Live chat via Zendesk Chat
-     - Answer Bot for AI support
-     
-     2. Salesforce Service Cloud
-     - Enterprise CRM integration
-     
-     For smaller teams, Zendesk or Freshdesk offer flexibility."
-
-Example Output:
-    [
-        {"brand_count": 2, "position": 1, "brand_name": "Zendesk"},
-        {"brand_count": 1, "position": 2, "brand_name": "Salesforce"},
-        {"brand_count": 1, "position": 3, "brand_name": "Freshdesk"}
-    ]
-
-Explanation:
-    - First Zendesk (header) → +1
-    - Zendesk Chat (nested in Zendesk block) → 0
-    - Answer Bot (product only) → 0
-    - Salesforce Service Cloud → +1
-    - Second Zendesk (outside brand block) → +1
-    - Freshdesk → +1
-
-
-MAKE SURE TO GENERATE A JSON ARRAY. THE OUTPUT MUST BE A SINGLE LINE, COMPACT JSON STRING WITH NO PRETTY PRINTING OR LINE BREAKS
-
 Now analyze the following markdown:
 """
 
@@ -131,7 +38,6 @@ Now analyze the following markdown:
 def get_user_prompt(clean_content: str) -> str:
     return f"""
         {USER_PROMPT}
-        Here is the text :
         {clean_content}
         """
 
