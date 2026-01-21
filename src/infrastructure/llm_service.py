@@ -19,7 +19,6 @@ from src.infrastructure.aws_storage import AWSStorage
 from src.infrastructure.click_house import ClickHouse
 from src.infrastructure.database import DataBase
 from src.infrastructure.models import (
-    Brand_Metrics,
     Citations,
     Output_Reports,
     SentimentBody,
@@ -91,13 +90,13 @@ class LLMService:
         Remove all URLs from text
         """
         # Pattern to match URLs (http, https, ftp, www, and common domain patterns)
-        url_pattern = r'https?://\S+|www\.\S+|ftp://\S+'
-        
+        url_pattern = r"https?://\S+|www\.\S+|ftp://\S+"
+
         # Remove URLs
-        text_without_urls = re.sub(url_pattern, '', self.clean_content)
-        
+        text_without_urls = re.sub(url_pattern, "", self.clean_content)
+
         # Clean up extra whitespace that might be left behind
-        text_without_urls = re.sub(r'\s+', ' ', text_without_urls).strip() 
+        text_without_urls = re.sub(r"\s+", " ", text_without_urls).strip()
         return text_without_urls
 
     def google_content_splitter(self):
@@ -137,8 +136,8 @@ class LLMService:
         logging.info("- Starting the LLM prompt parsing system")
         parsed_results = []
         content = self.remove_links()
-        if self.model == 'Google':
-            content = content.split('Show all')[0]
+        if self.model == "Google":
+            content = content.split("Show all")[0]
 
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
@@ -329,21 +328,21 @@ class LLMService:
 
         # get and save parsed data
         self.extract_brand_mentions()
-        # self.get_citations()
-        # self.get_sentiments()
-        # self.save_brand_report_output()
+        self.get_citations()
+        self.get_sentiments()
+        self.save_brand_report_output()
 
 
-if __name__ == "__main__":
-    llm_service = LLMService(
-        save_to_db=False,
-        process_id=str(time.time_ns()),
-        brand_report_id="br_12345",
-        prompt_id="pt_12345",
-        date="2025-10-05",
-        model="Google",
-        brand="Nike",
-        s3_key="google/google-brand_report_20-Prompt_201-1767635315",
-        logger=logging.Logger(name="TESTING: "),
-    )
-    llm_service.main()
+# if __name__ == "__main__":
+#     llm_service = LLMService(
+#         save_to_db=False,
+#         process_id=str(time.time_ns()),
+#         brand_report_id="br_12345",
+#         prompt_id="pt_12345",
+#         date="2025-10-05",
+#         model="Google",
+#         brand="Nike",
+#         s3_key="google/google-brand_report_20-Prompt_201-1767635315",
+#         logger=logging.Logger(name="TESTING: "),
+#     )
+#     llm_service.main()
