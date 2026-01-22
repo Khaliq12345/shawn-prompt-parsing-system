@@ -74,7 +74,7 @@ class LLMService:
         self.save_to_db = save_to_db
         print(config.MODEL_NAME)
 
-    def count_word_with_apostrophe(self, word: str):
+    def count_word_with_apostrophe(self, word: str, content: str):
         """
         Count occurrences of a word in text, including the word with 's
         """
@@ -82,7 +82,7 @@ class LLMService:
         pattern = r"\b" + re.escape(word) + r"('s)?\b"
 
         # Find all matches (case-insensitive)
-        matches = re.findall(pattern, self.clean_content, re.IGNORECASE)
+        matches = re.findall(pattern, content, re.IGNORECASE)
         return len(matches)
 
     def remove_links(self):
@@ -175,7 +175,7 @@ class LLMService:
 
         # putting it for the brand metrics
         for brand in results:
-            brand_mention_count = self.count_word_with_apostrophe(brand.brand)
+            brand_mention_count = self.count_word_with_apostrophe(brand.brand, content)
             parsed_results.append(
                 {
                     "brand_report_id": self.brand_report_id,
@@ -342,7 +342,7 @@ class LLMService:
 #         date="2025-10-05",
 #         model="Google",
 #         brand="Nike",
-#         s3_key="google/google-brand_report_20-Prompt_201-1767635315",
+#         s3_key="google/google-brand_report_21-Prompt_204-1769027781",
 #         logger=logging.Logger(name="TESTING: "),
 #     )
 #     llm_service.main()
