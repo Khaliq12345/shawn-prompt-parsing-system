@@ -133,11 +133,11 @@ class LLMService:
         return cleaned_markdown.strip()
 
     def extract_brand_mentions(self):
+        logging.info(self.text_key)
         logging.info("- Starting the LLM prompt parsing system")
         parsed_results = []
         content = self.remove_links()
         if self.model.lower() == "google":
-            logging.info("THIS GOOGLE PARSING")
             content = content.split("Show all")[0]
 
         response = self.client.models.generate_content(
