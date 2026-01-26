@@ -138,7 +138,11 @@ class LLMService:
         parsed_results = []
         content = self.remove_links()
         if self.model.lower() == "google":
-            content = content.split("Show all")[0]
+            contents = content.split("Show all")
+            content = contents[0]
+            for cc in contents[-1].split("* "):
+                if cc in content:
+                    content = content.replace(cc, " ")
 
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
@@ -323,7 +327,7 @@ class LLMService:
             return None
 
         # clean the content
-        if self.model == "Google":
+        if self.model.lower() == "google":
             self.google_content_splitter()
         self.clean_content = self.clean_markdown()
 
@@ -333,7 +337,7 @@ class LLMService:
         self.get_sentiments()
         self.save_brand_report_output()
 
-
+#
 # if __name__ == "__main__":
 #     llm_service = LLMService(
 #         save_to_db=False,
@@ -341,9 +345,9 @@ class LLMService:
 #         brand_report_id="br_12345",
 #         prompt_id="pt_12345",
 #         date="2025-10-05",
-#         model="Google",
-#         brand="Nike",
-#         s3_key="google/google-brand_report_20-Prompt_202-1769402362",
+#         model="google",
+#         brand="Zendesk",
+#         s3_key="google/google-brand_report_20-Prompt_202-1769415684",
 #         logger=logging.Logger(name="TESTING: "),
 #     )
 #     llm_service.main()
