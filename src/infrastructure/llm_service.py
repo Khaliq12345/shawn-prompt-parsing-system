@@ -99,19 +99,6 @@ class LLMService:
         text_without_urls = re.sub(r"\s+", " ", text_without_urls).strip()
         return text_without_urls
 
-    def google_content_splitter(self):
-        """
-        Converts markdown to HTML and separates citations.
-        """
-        # Split content and citations at "*   []"
-        citation_pattern = r"\*\s+\[\]"
-        if not self.content:
-            return None
-        parts = re.split(citation_pattern, self.content, maxsplit=1)
-
-        self.content = parts[0].strip()
-        self.google_citations = parts[1].strip() if len(parts) > 1 else ""
-
     def clean_markdown(self) -> str:
         self.logger.info("Cleaning Content")
         if not self.content:
@@ -327,8 +314,6 @@ class LLMService:
             return None
 
         # clean the content
-        if self.model.lower() == "google":
-            self.google_content_splitter()
         self.clean_content = self.clean_markdown()
 
         # get and save parsed data
@@ -337,7 +322,7 @@ class LLMService:
         self.get_sentiments()
         self.save_brand_report_output()
 
-#
+
 # if __name__ == "__main__":
 #     llm_service = LLMService(
 #         save_to_db=False,
@@ -347,7 +332,7 @@ class LLMService:
 #         date="2025-10-05",
 #         model="google",
 #         brand="Zendesk",
-#         s3_key="google/google-brand_report_20-Prompt_202-1769415684",
+#         s3_key="google/google-brand_report_20-Prompt_202-1769418394",
 #         logger=logging.Logger(name="TESTING: "),
 #     )
 #     llm_service.main()
