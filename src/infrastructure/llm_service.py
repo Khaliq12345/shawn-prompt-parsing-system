@@ -82,7 +82,7 @@ class LLMService:
         pattern = r"\b" + re.escape(word) + r"('s)?\b"
 
         # Find all matches (case-insensitive)
-        matches = re.findall(pattern, content, re.IGNORECASE)
+        matches = re.findall(pattern, content)
         return len(matches)
 
     def remove_links(self):
@@ -97,9 +97,6 @@ class LLMService:
 
         # Clean up extra whitespace that might be left behind
         text_without_urls = re.sub(r"\s+", " ", text_without_urls).strip()
-        for x in text_without_urls.split(" "):
-            if "+" in x:
-                text_without_urls = text_without_urls.replace(x, " ")
         return text_without_urls
 
     def clean_markdown(self) -> str:
@@ -335,7 +332,7 @@ class LLMService:
 #         date="2025-10-05",
 #         model="perplexity",
 #         brand="Zendesk",
-#         s3_key="perplexity/perplexity-brand_report_20-Prompt_202-1769419294",
+#         s3_key="perplexity/perplexity-brand_report_20-Prompt_202-1769420908",
 #         logger=logging.Logger(name="TESTING: "),
 #     )
 #     llm_service.main()
