@@ -136,7 +136,7 @@ class LLMService:
         logging.info("- Starting the LLM prompt parsing system")
         parsed_results = []
         content = self.remove_links()
-        if self.model == "Google":
+        if self.model.lower() == "google":
             content = content.split("Show all")[0]
 
         response = self.client.models.generate_content(
