@@ -97,6 +97,9 @@ class LLMService:
 
         # Clean up extra whitespace that might be left behind
         text_without_urls = re.sub(r"\s+", " ", text_without_urls).strip()
+        for x in text_without_urls.split(" "):
+            if "+" in x:
+                text_without_urls = text_without_urls.replace(x, " ")
         return text_without_urls
 
     def clean_markdown(self) -> str:
@@ -330,9 +333,9 @@ class LLMService:
 #         brand_report_id="br_12345",
 #         prompt_id="pt_12345",
 #         date="2025-10-05",
-#         model="google",
+#         model="perplexity",
 #         brand="Zendesk",
-#         s3_key="google/google-brand_report_20-Prompt_202-1769418394",
+#         s3_key="perplexity/perplexity-brand_report_20-Prompt_202-1769419294",
 #         logger=logging.Logger(name="TESTING: "),
 #     )
 #     llm_service.main()
