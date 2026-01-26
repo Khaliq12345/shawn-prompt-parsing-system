@@ -137,6 +137,7 @@ class LLMService:
         parsed_results = []
         content = self.remove_links()
         if self.model.lower() == "google":
+            logging.info("THIS GOOGLE PARSING")
             content = content.split("Show all")[0]
 
         response = self.client.models.generate_content(
@@ -333,7 +334,6 @@ class LLMService:
         self.save_brand_report_output()
 
 
-#
 # if __name__ == "__main__":
 #     llm_service = LLMService(
 #         save_to_db=False,
@@ -343,7 +343,7 @@ class LLMService:
 #         date="2025-10-05",
 #         model="Google",
 #         brand="Nike",
-#         s3_key="google/google-brand_report_20-Prompt_202-1769104643",
+#         s3_key="google/google-brand_report_20-Prompt_202-1769402362",
 #         logger=logging.Logger(name="TESTING: "),
 #     )
 #     llm_service.main()
