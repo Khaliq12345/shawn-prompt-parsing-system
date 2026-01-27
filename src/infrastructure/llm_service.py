@@ -74,13 +74,26 @@ class LLMService:
         self.save_to_db = save_to_db
         print(config.MODEL_NAME)
 
+    def split_citation_and_content(self, text: str):
+        # Pattern for dates like "Jan 8, 2026 —" or "Dec 16, 2025 —"
+        date_pattern = r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}\s+[—\-]"
+
+        lines = text.split(".")
+
+        for i, line in enumerate(lines):
+            if re.search(date_pattern, line):
+                real_text = "\n".join(lines[:i]).strip()
+                citations = "\n".join(lines[i:]).strip()
+                return real_text, citations
+
+        return text, ""
+
     def count_word_with_apostrophe(self, word: str, content: str):
         """
         Count occurrences of a word in text, including the word with 's
         """
         # \b ensures we match whole words only
-        pattern = r"\b" + re.escape(word) + r"('s)?\b"
-
+        pattern = r"(^|\s)" + re.escape(word) + r"('s)?(\s|[.,;:!?]|$)"
         # Find all matches (case-insensitive)
         matches = re.findall(pattern, content)
         return len(matches)
@@ -125,12 +138,17 @@ class LLMService:
         parsed_results = []
         content = self.remove_links()
         if self.model.lower() == "google":
-            contents = content.split("Show all")
-            content = contents[0]
-            for cc in contents[-1].split("* "):
+            content, citations = self.split_citation_and_content(content)
+            for cc in citations.split("* "):
                 if cc in content:
                     content = content.replace(cc, " ")
 
+        content = (
+            content.replace("]", " ")
+            .replace("[", " ")
+            .replace("(", " ")
+            .replace(")", " ")
+        )
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
             contents=get_user_prompt(content),
@@ -330,9 +348,9 @@ class LLMService:
 #         brand_report_id="br_12345",
 #         prompt_id="pt_12345",
 #         date="2025-10-05",
-#         model="perplexity",
+#         model="google",
 #         brand="Zendesk",
-#         s3_key="perplexity/perplexity-brand_report_20-Prompt_202-1769420908",
+#         s3_key="google/google-brand_report_21-Prompt_204-1769453119",
 #         logger=logging.Logger(name="TESTING: "),
 #     )
 #     llm_service.main()
