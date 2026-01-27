@@ -74,31 +74,17 @@ class LLMService:
         self.save_to_db = save_to_db
         print(config.MODEL_NAME)
 
-    def split_citation_and_content(self, text: str):
-        # Pattern for dates like "Jan 8, 2026 —" or "Dec 16, 2025 —"
-        date_pattern = r"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}\s+[—\-]"
-
-        lines = text.split(".")
-
-        for i, line in enumerate(lines):
-            if re.search(date_pattern, line):
-                real_text = "\n".join(lines[:i]).strip()
-                citations = "\n".join(lines[i:]).strip()
-                return real_text, citations
-
-        return text, ""
-
     def count_word_with_apostrophe(self, word: str, content: str):
         """
         Count occurrences of a word in text, including the word with 's
         """
         # \b ensures we match whole words only
-        pattern = r"(^|\s)" + re.escape(word) + r"('s)?(\s|[.,;:!?]|$)"
+        pattern = r"\b" + re.escape(word) + r"(?!\+)('s)?\b"
         # Find all matches (case-insensitive)
         matches = re.findall(pattern, content)
         return len(matches)
 
-    def remove_links(self):
+    def remove_links(self, content: str | None = None):
         """
         Remove all URLs from text
         """
@@ -106,17 +92,19 @@ class LLMService:
         url_pattern = r"https?://\S+|www\.\S+|ftp://\S+"
 
         # Remove URLs
-        text_without_urls = re.sub(url_pattern, "", self.clean_content)
+        text_without_urls = re.sub(
+            url_pattern, "", content if content else self.clean_content
+        )
 
         # Clean up extra whitespace that might be left behind
         text_without_urls = re.sub(r"\s+", " ", text_without_urls).strip()
         return text_without_urls
 
-    def clean_markdown(self) -> str:
+    def clean_markdown(self, content: str | None = None) -> str:
         self.logger.info("Cleaning Content")
         if not self.content:
             return ""
-        html_content = markdown2.markdown(self.content)
+        html_content = markdown2.markdown(content if content else self.content)
         cleaned_markdown = md(
             html_content,
             strip=[
@@ -136,19 +124,12 @@ class LLMService:
         logging.info(self.text_key)
         logging.info("- Starting the LLM prompt parsing system")
         parsed_results = []
-        content = self.remove_links()
         if self.model.lower() == "google":
-            content, citations = self.split_citation_and_content(content)
-            for cc in citations.split("* "):
-                if cc in content:
-                    content = content.replace(cc, " ")
+            content = self.content.split("* []")[0]
+            content = self.remove_links(self.clean_markdown(content))
+        else:
+            content = self.remove_links()
 
-        content = (
-            content.replace("]", " ")
-            .replace("[", " ")
-            .replace("(", " ")
-            .replace(")", " ")
-        )
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
             contents=get_user_prompt(content),
@@ -186,6 +167,7 @@ class LLMService:
         # putting it for the brand metrics
         for brand in results:
             brand_mention_count = self.count_word_with_apostrophe(brand.brand, content)
+            brand_mention_count = 1 if brand_mention_count == 0 else brand_mention_count
             parsed_results.append(
                 {
                     "brand_report_id": self.brand_report_id,
@@ -341,16 +323,16 @@ class LLMService:
         self.save_brand_report_output()
 
 
-# if __name__ == "__main__":
-#     llm_service = LLMService(
-#         save_to_db=False,
-#         process_id=str(time.time_ns()),
-#         brand_report_id="br_12345",
-#         prompt_id="pt_12345",
-#         date="2025-10-05",
-#         model="google",
-#         brand="Zendesk",
-#         s3_key="google/google-brand_report_21-Prompt_204-1769453119",
-#         logger=logging.Logger(name="TESTING: "),
-#     )
-#     llm_service.main()
+if __name__ == "__main__":
+    llm_service = LLMService(
+        save_to_db=False,
+        process_id=str(time.time_ns()),
+        brand_report_id="br_12345",
+        prompt_id="pt_12345",
+        date="2025-10-05",
+        model="chatgpt",
+        brand="Zendesk",
+        s3_key="chatgpt/chatgpt-brand_report_20-Prompt_201-1769517720",
+        logger=logging.Logger(name="TESTING: "),
+    )
+    llm_service.main()
