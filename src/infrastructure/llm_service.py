@@ -330,9 +330,9 @@ if __name__ == "__main__":
         brand_report_id="br_12345",
         prompt_id="pt_12345",
         date="2025-10-05",
-        model="chatgpt",
+        model="google",
         brand="Zendesk",
-        s3_key="chatgpt/chatgpt-brand_report_20-Prompt_201-1769517720",
+        s3_key="google/google-brand_report_22-Prompt_205-1769576058",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()

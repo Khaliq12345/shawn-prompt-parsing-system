@@ -86,6 +86,8 @@ def extract_url_data(text):
             domain = ".".join(domain_parts[-2:])
         else:
             domain = parsed.netloc.lower()
+        if domain == "google.com":
+            continue
 
         results.append({"normalised_url": clean_url, "count": count, "domain": domain})
 
@@ -121,22 +123,20 @@ def get_domain_citation(
         if domain in markdown:
             coverage_num += 1
 
-    pattern = r"\[.*?\]\((https?://[^\s)]+)\)"
-    matches = re.findall(pattern, markdown, flags=re.IGNORECASE)
+    # pattern = r"\[.*?\]\((https?://[^\s)]+)\)"
+    # matches = re.findall(pattern, markdown, flags=re.IGNORECASE)
 
-    competitor_domains = get_domain_competitor(matches, domain)
+    # competitor_domains = get_domain_competitor(matches, domain)
 
     url_records = extract_url_data(markdown)
     for url_record in url_records:
-        if url_record["domain"] == "google.com":
-            continue
         if url_record["domain"] == domain:
             response_output["domain"] = url_record
             citation_count += 1
-        elif url_record["domain"] in competitor_domains:
-            response_output["competitor_domains"].append(url_record)
-        else:
-            response_output["external_domains"].append(url_record)
+        # elif url_record["domain"] in competitor_domains:
+        #     response_output["competitor_domains"].append(url_record)
+        # else:
+        #     response_output["external_domains"].append(url_record)
 
     coverage = (coverage_num / len(s3_keys)) * 100
     coverage = round(coverage, 2)
@@ -144,6 +144,6 @@ def get_domain_citation(
         "details": {
             "citation": citation_count,
             "coverage": coverage,
-            "url_data": response_output,
+            "url_data": url_records,
         }
     }
