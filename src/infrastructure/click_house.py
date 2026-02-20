@@ -85,7 +85,7 @@ class ClickHouse:
         stmt = f"""
             SELECT SUM(mention_count) AS total_mentions
             FROM default.brands
-            WHERE brand = '{brand}'
+            WHERE lower(brand) = lower('{brand}')
               AND brand_report_id = '{brand_report_id}'
               AND date <= '{end_date}' AND date >= '{start_date}'
               {"AND model = '" + model + "'" if model != "all" else ""}
@@ -105,7 +105,7 @@ class ClickHouse:
     ) -> dict:
         stmt = f"""
             SELECT
-                (SUM(CASE WHEN brand = '{brand}' THEN mention_count ELSE 0 END)
+                (SUM(CASE WHEN lower(brand) = lower('{brand}') THEN mention_count ELSE 0 END)
                  / SUM(mention_count)) * 100 AS sov,  toDateTime(date) AS date
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
@@ -129,7 +129,7 @@ class ClickHouse:
         stmt = f"""
             SELECT
                 COUNT(*) AS total_rows,
-                countIf(mention_count >= 1 AND brand = '{brand}') AS mentioned_rows
+                countIf(mention_count >= 1 AND lower(brand) = lower('{brand}')) AS mentioned_rows
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
                 AND date <= '{end_date}' AND date >= '{start_date}'
@@ -154,7 +154,7 @@ class ClickHouse:
         stmt = f"""
             SELECT
                 SUM(brands.position) as all_position,
-                sumIf(brands.position, brands.brand = '{brand}') as brand_position
+                sumIf(brands.position, lower(brands.brand) = lower('{brand}')) as brand_position
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
                 AND date <= '{end_date}' AND date >= '{start_date}'
