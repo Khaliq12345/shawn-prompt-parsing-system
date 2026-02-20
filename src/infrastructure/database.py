@@ -270,7 +270,7 @@ class DataBase:
                 (
                     unique_date.strftime("%Y-%m-%d")
                     if isinstance(unique_date, (datetime, date))
-                    else str(unique_date)
+                    else str(unique_date.split(".")[0])
                 )
                 for unique_date in unique_dates
             ]
