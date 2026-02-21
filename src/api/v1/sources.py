@@ -86,7 +86,7 @@ def extract_url_data(text):
             domain = ".".join(domain_parts[-2:])
         else:
             domain = parsed.netloc.lower()
-        if domain == "google.com":
+        if (domain == "google.com") or ("gstatic.com" in domain):
             continue
 
         results.append({"normalised_url": clean_url, "count": count, "domain": domain})
@@ -132,7 +132,7 @@ def get_domain_citation(
     for url_record in url_records:
         if url_record["domain"] == domain:
             response_output["domain"] = url_record
-            citation_count += 1
+            citation_count = url_record["count"]
         # elif url_record["domain"] in competitor_domains:
         #     response_output["competitor_domains"].append(url_record)
         # else:
