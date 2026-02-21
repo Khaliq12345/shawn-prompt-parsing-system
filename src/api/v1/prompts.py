@@ -129,18 +129,14 @@ def get_outputs(
 
 @router.get("/citations")
 def get_citations(
-    db: Annotated[DataBase, Depends(DataBase)],
-    prompt_id: str,
-    date: str,
-    model: str
+    db: Annotated[DataBase, Depends(DataBase)], prompt_id: str, date: str, model: str
 ):
     """
     Retrieve citations for a given report.
     """
     try:
-        citations = db.get_citations(
-            prompt_id, date, model
-        )
+        citations = db.get_citations(prompt_id, date, model)
+        print(citations)
         return {"citations": citations}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server Error: {e}")
@@ -148,19 +144,14 @@ def get_citations(
 
 @router.get("/sentiments")
 def get_sentiments(
-    db: Annotated[DataBase, Depends(DataBase)],
-    prompt_id: str,
-    date: str,
-    model: str
+    db: Annotated[DataBase, Depends(DataBase)], prompt_id: str, date: str, model: str
 ):
     """
     Retrieve sentiment analysis results for a given report.
     Adds helper counters for positive and negative phrases.
     """
     try:
-        sentiments = db.get_sentiments(
-            prompt_id, date, model
-        )
+        sentiments = db.get_sentiments(prompt_id, date, model)
 
         for sentiment in sentiments:
             sentiment["count_positive_phrases"] = len(

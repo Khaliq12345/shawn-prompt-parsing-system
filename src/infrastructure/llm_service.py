@@ -261,8 +261,18 @@ class LLMService:
 
     def get_citations(self):
         """Convert markdown to html and extract links"""
+
         self.logger.info("Getting the citations")
+
         citations = []
+        BLOCKED_DOMAINS = {
+            "www.google.com",
+            "google.com",
+            "gstatic.com",
+            "www.gstatic.com",
+            "accounts.google.com",
+            "support.google.com",
+        }
         if self.model == "Google":
             html_content = (
                 markdown2.markdown(f"{self.content} {self.google_citations}")
@@ -271,35 +281,45 @@ class LLMService:
             )
         else:
             html_content = markdown2.markdown(self.content) if self.content else ""
+
         html = HTMLParser(html_content)
         link_nodes = html.css("a")
-        for i, link_node in enumerate(link_nodes):
-            link = link_node.css_first("a")
-            if not link:
+
+        rank = 1
+
+        for link_node in link_nodes:
+            href = link_node.attributes.get("href")
+            if not href or href.strip() in {"://", "#", "/"}:
                 continue
-            title = link.text(separator=" ")
-            link = link.attributes.get("href")
-            domain = urlparse(link).netloc if link else None
-            if domain == "www.google.com":
+
+            parsed = urlparse(href)
+            domain = parsed.netloc.lower()
+
+            if any(blocked in domain for blocked in BLOCKED_DOMAINS):
                 continue
-            parsed = urlparse(link)
-            clean_url = clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
+            title = link_node.text(separator=" ").strip()
+
+            clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+
             citation = Citations(
-                id=f"{self.process_id}-{i}",
+                id=f"{self.process_id}-{rank}",
                 brand_report_id=self.brand_report_id,
                 prompt_id=self.prompt_id,
                 date=self.date,
                 model=self.model,
                 brand=self.brand,
-                rank=i + 1,
+                rank=rank,
                 title=title,
                 domain=domain,
                 norm_url=clean_url,
             )
+
             citations.append(citation)
+            rank += 1
 
         print(f"Found -> {len(citations)} citations")
-        # once citations have been validated then save
+
         if self.save_to_db:
             self.database.save_citations(citations)
 
