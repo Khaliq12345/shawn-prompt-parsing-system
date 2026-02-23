@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.infrastructure import celery_app
 from src.infrastructure.aws_storage import AWSStorage
 from src.infrastructure.database import DataBase
+import markdown2
+from markdownify import markdownify as md
 
 router = APIRouter(
     prefix="/report/prompts", responses={404: {"description": "Not found"}}
@@ -109,8 +111,22 @@ def get_outputs(
         print("GETTING PRESIGNED URLS")
         snapshot_url = aws_storage.get_presigned_url(report["snapshot"])
         markdown = aws_storage.get_file_content(report["markdown"])
-        print("URLS GOTTEN")
 
+        html_content = markdown2.markdown(markdown if markdown else "")
+        cleaned_markdown = md(
+            html_content,
+            strip=[
+                "img",
+                "picture",
+                "figure",
+                "source",
+                "svg",
+                "object",
+                "embed",
+                "iframe",
+            ],
+        ).strip()
+        print("URLS GOTTEN")
         # Retrieve all unique available dates according to max_date
         print("GETTING ALL DATES")
         available_dates = db.get_report_dates(max_dates=max_date, prompt_id=prompt_id)
@@ -118,7 +134,7 @@ def get_outputs(
 
         return {
             "snapshot_url": snapshot_url,
-            "markdown": markdown,
+            "markdown": cleaned_markdown,
             "available_dates": available_dates,
         }
     except HTTPException as _:
