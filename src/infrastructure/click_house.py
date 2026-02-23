@@ -176,22 +176,39 @@ class ClickHouse:
         model: str,
         start_date: str,
     ) -> dict:
+        params = {
+            "brand": brand,
+            "brand_report_id": brand_report_id,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
+
+        model_filter = ""
+        if model != "all":
+            model_filter = "AND model = %(model)s"
+            params["model"] = model
+
         stmt = f"""
             SELECT
-                SUM(brands.position) as all_position,
-                sumIf(brands.position, lower(brands.brand) = lower('{brand}')) as brand_position
+                sumIf(position, lower(brand) = lower(%(brand)s)) AS total_position,
+                countIf(lower(brand) = lower(%(brand)s)) AS brand_count
             FROM default.brands
-            WHERE brand_report_id = '{brand_report_id}'
-                AND date <= '{end_date}' AND date >= '{start_date}'
-              {"AND model = '" + model + "'" if model != "all" else ""}
+            WHERE brand_report_id = %(brand_report_id)s
+                AND date >= %(start_date)s
+                AND date <= %(end_date)s
+                {model_filter}
         """
-        result = self.client.query(stmt).first_item
-        all_positions = result.get("all_position") or 0
-        brand_position = result.get("brand_position") or 0
-        if (brand_position == 0) or (all_positions == 0):
-            return {"data": 0}
-        position = brand_position / all_positions
-        return {"data": position}
+
+        result = self.client.query(stmt, params).first_item
+
+        total_position = result.get("total_position") or 0
+        brand_count = result.get("brand_count") or 0
+
+        if brand_count == 0:
+            return {"data": 0.0}
+
+        avg_position = total_position / brand_count
+        return {"data": float(avg_position)}
 
     def get_brand_ranking(
         self,
