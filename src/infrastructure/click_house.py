@@ -103,20 +103,45 @@ class ClickHouse:
         model: str,
         start_date: str,
     ) -> dict:
+        params = {
+            "brand": brand,
+            "brand_report_id": brand_report_id,
+            "start_date": start_date,
+            "end_date": end_date,
+        }
+
+        model_filter = ""
+        if model != "all":
+            model_filter = "AND model = %(model)s"
+            params["model"] = model
+
         stmt = f"""
             SELECT
-                (SUM(CASE WHEN lower(brand) = lower('{brand}') THEN mention_count ELSE 0 END)
-                 / SUM(mention_count)) * 100 AS sov,  toDateTime(date) AS date
+                (
+                    SUM(
+                        CASE
+                            WHEN lower(brand) = lower(%(brand)s)
+                            THEN toFloat64(mention_count)
+                            ELSE 0
+                        END
+                    )
+                    /
+                    NULLIF(SUM(toFloat64(mention_count)), 0)
+                ) * 100 AS sov
             FROM default.brands
-            WHERE brand_report_id = '{brand_report_id}'
-                AND date <= '{end_date}' AND date >= '{start_date}'
-                {"AND model = '" + model + "'" if model != "all" else ""}
-            GROUP BY date
+            WHERE brand_report_id = %(brand_report_id)s
+                AND date >= %(start_date)s
+                AND date <= %(end_date)s
+                {model_filter}
         """
-        query = self.client.query(stmt)
+
+        query = self.client.query(stmt, params)
+
         if not query.row_count:
             return {"data": 0.0}
-        return {"data": query.first_item.get("sov") or 0.0}
+
+        sov = query.first_item.get("sov")
+        return {"data": float(sov) if sov else 0.0}
 
     def get_brand_coverage(
         self,
