@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.infrastructure import celery_app
 from src.infrastructure.aws_storage import AWSStorage
 from src.infrastructure.database import DataBase
+from src.infrastructure.shared import clean_markdown, super_clean
 import markdown2
 from markdownify import markdownify as md
 
@@ -104,34 +105,21 @@ def get_outputs(
             date,
             model,
         )
+        # Retrieve all unique available dates according to max_date
+        available_dates = db.get_report_dates(max_dates=max_date, prompt_id=prompt_id)
         if not report:
-            raise HTTPException(status_code=404, detail="Output report not found")
+            return {
+                "snapshot_url": "https://ik.imagekit.io/creattie/tr:q-80,f-auto/processed/with_watermark/e250c2d691b0b550ae.png",
+                "markdown": "",
+                "available_dates": available_dates,
+            }
 
         # Generate AWS S3 pre-signed URLs
         print("GETTING PRESIGNED URLS")
         snapshot_url = aws_storage.get_presigned_url(report["snapshot"])
         markdown = aws_storage.get_file_content(report["markdown"])
 
-        html_content = markdown2.markdown(markdown if markdown else "")
-        cleaned_markdown = md(
-            html_content,
-            strip=[
-                "img",
-                "picture",
-                "figure",
-                "source",
-                "svg",
-                "object",
-                "embed",
-                "iframe",
-            ],
-        ).strip()
-        print("URLS GOTTEN")
-        # Retrieve all unique available dates according to max_date
-        print("GETTING ALL DATES")
-        available_dates = db.get_report_dates(max_dates=max_date, prompt_id=prompt_id)
-        print("ALL DATES RETRIEVED")
-
+        cleaned_markdown = super_clean(markdown if markdown else "", model)
         return {
             "snapshot_url": snapshot_url,
             "markdown": cleaned_markdown,
