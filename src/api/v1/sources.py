@@ -105,6 +105,7 @@ def get_domain_citation(
     end_date = parameters.get("end_date", "")
     domain = parameters.get("domain", "")
     model = parameters.get("model", "")
+
     s3_keys = database.get_markdown_s3_keys(
         brand_report_id=brand_report_id,
         start_date=start_date,
@@ -112,34 +113,35 @@ def get_domain_citation(
         model=model,
     )
 
-    markdown = ""
+    if not s3_keys:
+        return {
+            "details": {
+                "citation": 0,
+                "coverage": 0.0,
+                "url_data": [],
+            }
+        }
+
+    all_markdown = ""
     coverage_num = 0
-    citation_count = 0
     response_output = {"domain": None, "competitor_domains": [], "external_domains": []}
+
     for s3_key in s3_keys:
         print(f"LOADING KEY - {s3_key}")
         output = aws.get_file_content(s3_key)
-        markdown = f"{markdown} {output}".strip()
-        if domain in markdown:
+        if domain in output:
             coverage_num += 1
+        all_markdown = f"{all_markdown} {output}".strip()
 
-    # pattern = r"\[.*?\]\((https?://[^\s)]+)\)"
-    # matches = re.findall(pattern, markdown, flags=re.IGNORECASE)
+    url_records = extract_url_data(all_markdown)
 
-    # competitor_domains = get_domain_competitor(matches, domain)
-
-    url_records = extract_url_data(markdown)
     for url_record in url_records:
         if url_record["domain"] == domain:
             response_output["domain"] = url_record
-            citation_count = url_record["count"]
-        # elif url_record["domain"] in competitor_domains:
-        #     response_output["competitor_domains"].append(url_record)
-        # else:
-        #     response_output["external_domains"].append(url_record)
 
-    coverage = (coverage_num / len(s3_keys)) * 100
-    coverage = round(coverage, 2)
+    citation_count = sum(r["count"] for r in url_records if r["domain"] == domain)
+    coverage = round((coverage_num / len(s3_keys)) * 100, 2)
+
     return {
         "details": {
             "citation": citation_count,
