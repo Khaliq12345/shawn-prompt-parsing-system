@@ -7,9 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from src.infrastructure import celery_app
 from src.infrastructure.aws_storage import AWSStorage
 from src.infrastructure.database import DataBase
-from src.infrastructure.shared import clean_markdown, super_clean
-import markdown2
-from markdownify import markdownify as md
+from src.infrastructure.shared import super_clean
 
 router = APIRouter(
     prefix="/report/prompts", responses={404: {"description": "Not found"}}
@@ -109,7 +107,7 @@ def get_outputs(
         available_dates = db.get_report_dates(max_dates=max_date, prompt_id=prompt_id)
         if not report:
             return {
-                "snapshot_url": "https://ik.imagekit.io/creattie/tr:q-80,f-auto/processed/with_watermark/e250c2d691b0b550ae.png",
+                "snapshot_url": "",
                 "markdown": "",
                 "available_dates": available_dates,
             }
