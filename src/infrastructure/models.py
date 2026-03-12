@@ -65,7 +65,7 @@ class Brand_Metrics(BaseModel):
 
 class Brand_List(BaseModel):
     brand: str
-    position: int
+    # position: int
 
 
 class Domain_Model(BaseModel):

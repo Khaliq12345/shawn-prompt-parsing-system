@@ -158,30 +158,50 @@ class LLMService:
             if self.save_to_db:
                 self.database.save_token_usage(token_data)
 
-        # validating
-        results = json.loads(response.model_dump_json())
+        # # validating
+        dedup = set()
+        # results = json.loads(response.model_dump_json())
         results = response.parsed if response else []
         if not isinstance(results, list):
             return None
 
-        # putting it for the brand metrics
-        for brand in results:
-            brand_mention_count = self.count_word_with_apostrophe(brand.brand, content)
+        brand_positions = []
+        content_lower = content.lower()
+        for r in results:
+            brand_name = r.brand.strip()
+
+            if brand_name in dedup:
+                continue
+
+            dedup.add(brand_name)
+
+            index = content_lower.find(brand_name.lower())
+            if index != -1:
+                brand_positions.append((brand_name, index))
+
+        # sort by appearance in content
+        brand_positions.sort(key=lambda x: x[1])
+
+        # assign ranking
+        rank_map = {brand: i + 1 for i, (brand, _) in enumerate(brand_positions)}
+
+        for brand in dedup:
+            brand_mention_count = self.count_word_with_apostrophe(brand, content)
             brand_mention_count = 1 if brand_mention_count == 0 else brand_mention_count
+
             parsed_results.append(
                 {
                     "brand_report_id": self.brand_report_id,
                     "prompt_id": self.prompt_id,
-                    "brand": brand.brand,
+                    "brand": brand,
                     "mention_count": brand_mention_count,
-                    "position": brand.position,
+                    "position": rank_map.get(brand),
                     "date": parse(self.date),
                     "model": self.model,
                 }
             )
 
         # Save to database
-        print(parsed_results)
         if self.save_to_db:
             self.clickhouse.insert_into_db(parsed_results)
 
@@ -234,12 +254,17 @@ class LLMService:
             self.database.save_token_usage(token_data)
 
         # Validate sentiments
+        dedup = set()
         sentiments = response.parsed if response.parsed else []
-
-        print(sentiments)
         if not isinstance(sentiments, list):
             return None
+
         for idx, sentiment in enumerate(sentiments):
+            brand_name = sentiment.brand.strip()
+            if brand_name in dedup:
+                continue
+
+            dedup.add(brand_name)
             parsed_sentiments.append(
                 Sentiments(
                     id=f"{self.process_id}-{idx}",
@@ -351,8 +376,8 @@ if __name__ == "__main__":
         prompt_id="pt_12345",
         date="2025-10-05",
         model="google",
-        brand="Zendesk",
-        s3_key="google/google-brand_report_22-Prompt_205-1769576058",
+        brand="",
+        s3_key="google/google-246a60e9-812c-4322-b3ed-c0b2e109183c-57b0ec89-d8f2-44eb-b327-f9d4c37a3a0a-1772525185",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()
