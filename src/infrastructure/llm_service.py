@@ -5,7 +5,7 @@ sys.path.append(".")
 
 import json
 import logging
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 import time
 import markdown2
 from markdownify import markdownify as md
@@ -325,7 +325,16 @@ class LLMService:
 
             title = link_node.text(separator=" ").strip()
 
-            clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            clean_url = urlunparse(
+                (
+                    parsed.scheme,
+                    parsed.netloc,
+                    parsed.path,
+                    parsed.params,
+                    parsed.query,
+                    ''
+                )
+            )
 
             citation = Citations(
                 id=f"{self.process_id}-{rank}",
@@ -377,7 +386,7 @@ if __name__ == "__main__":
         date="2025-10-05",
         model="google",
         brand="",
-        s3_key="google/google-246a60e9-812c-4322-b3ed-c0b2e109183c-57b0ec89-d8f2-44eb-b327-f9d4c37a3a0a-1772525185",
+        s3_key="google/google-0b5f019a-8e29-40bf-a9b8-94c9bdad7997-da4d74a6-b226-498e-a36d-f8177d85810a-1773461724",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()
