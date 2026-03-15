@@ -151,21 +151,26 @@ class ClickHouse:
         model: str,
         start_date: str,
     ) -> dict:
+
+        model_filter = f"AND model = '{model}'" if model != "all" else ""
+
         stmt = f"""
             SELECT
                 COUNT(*) AS total_rows,
-                countIf(mention_count >= 1 AND lower(brand) = lower('{brand}')) AS mentioned_rows
+                COUNT_IF(mention_count >= 1) AS mentioned_rows
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
-                AND date <= '{end_date}' AND date >= '{start_date}'
-                {"AND model = '" + model + "'" if model != "all" else ""}
+              AND lower(brand) = lower('{brand}')
+              AND date >= '{start_date}'
+              AND date <= '{end_date}'
+              {model_filter}
         """
 
         result = self.client.query(stmt).first_item
         total = result.get("total_rows", 0)
         mentioned = result.get("mentioned_rows", 0)
 
-        coverage = (mentioned / total) * 100 if total > 0 else 0.0
+        coverage = (mentioned / total) * 100 if total else 0
         return {"data": coverage}
 
     def get_brand_position(

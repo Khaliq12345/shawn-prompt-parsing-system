@@ -312,6 +312,7 @@ class LLMService:
 
         rank = 1
 
+        print(self.content)
         for link_node in link_nodes:
             href = link_node.attributes.get("href")
             if not href or href.strip() in {"://", "#", "/"}:
@@ -332,7 +333,7 @@ class LLMService:
                     parsed.path,
                     parsed.params,
                     parsed.query,
-                    ''
+                    "",
                 )
             )
 
@@ -353,6 +354,8 @@ class LLMService:
             rank += 1
 
         print(f"Found -> {len(citations)} citations")
+        for cit in citations:
+            print(cit.norm_url)
 
         if self.save_to_db:
             self.database.save_citations(citations)
@@ -386,7 +389,7 @@ if __name__ == "__main__":
         date="2025-10-05",
         model="google",
         brand="",
-        s3_key="google/google-0b5f019a-8e29-40bf-a9b8-94c9bdad7997-da4d74a6-b226-498e-a36d-f8177d85810a-1773461724",
+        s3_key="perplexity/perplexity-355b1a4c-d163-41bf-bfb7-454c855ec6ed-5b0ddb91-20e1-4926-8236-6dc99f4f0dad-1773462819",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()

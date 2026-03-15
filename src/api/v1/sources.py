@@ -100,6 +100,7 @@ def get_domain_citation(
     database: database_depends,
 ):
     aws = AWSStorage()
+
     brand_report_id = parameters.get("brand_report_id", "")
     start_date = parameters.get("start_date", "")
     end_date = parameters.get("end_date", "")
@@ -122,24 +123,26 @@ def get_domain_citation(
             }
         }
 
-    all_markdown = ""
     coverage_num = 0
-    response_output = {"domain": None, "competitor_domains": [], "external_domains": []}
+    markdown_parts = []
+    all_url_records = []
 
     for s3_key in s3_keys:
-        print(f"LOADING KEY - {s3_key}")
         output = aws.get_file_content(s3_key)
-        if domain in output:
+        markdown_parts.append(output)
+
+        urls = extract_url_data(output)
+        all_url_records.extend(urls)
+
+        if any(u["domain"] == domain for u in urls):
             coverage_num += 1
-        all_markdown = f"{all_markdown} {output}".strip()
+
+    all_markdown = " ".join(markdown_parts)
 
     url_records = extract_url_data(all_markdown)
 
-    for url_record in url_records:
-        if url_record["domain"] == domain:
-            response_output["domain"] = url_record
-
     citation_count = sum(r["count"] for r in url_records if r["domain"] == domain)
+
     coverage = round((coverage_num / len(s3_keys)) * 100, 2)
 
     return {
