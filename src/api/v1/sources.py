@@ -140,7 +140,6 @@ def get_domain_citation(
     all_markdown = " ".join(markdown_parts)
 
     url_records = extract_url_data(all_markdown)
-
     citation_count = sum(r["count"] for r in url_records if r["domain"] == domain)
 
     coverage = round((coverage_num / len(s3_keys)) * 100, 2)
