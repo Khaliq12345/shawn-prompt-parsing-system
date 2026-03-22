@@ -2,6 +2,38 @@ import markdown2
 from markdownify import markdownify as md
 import re
 
+CANONICAL_MAP = {
+    "google": [
+        "google",
+        "google ai overviews",
+        "google aio",
+        "aio",
+        "ai overviews",
+    ],
+    "chatgpt": [
+        "chatgpt",
+        "chat gpt",
+        "gpt",
+    ],
+    "perplexity": [
+        "perplexity",
+    ],
+    "freshworks": [
+        "freshworks",
+        "fresh works",
+    ],
+}
+
+
+def to_canonical(brand: str):
+    brand = brand.lower().strip()
+
+    for canonical, variants in CANONICAL_MAP.items():
+        if brand in variants:
+            return canonical
+
+    return brand  # fallback
+
 
 def remove_links(content: str | None = None):
     """
