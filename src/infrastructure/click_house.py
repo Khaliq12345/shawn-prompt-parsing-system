@@ -220,10 +220,10 @@ class ClickHouse:
         brand_count = result.get("brand_count") or 0
 
         if brand_count == 0:
-            return {"data": 0.0}
+            return {"data": 0}
 
         avg_position = total_position / brand_count
-        return {"data": float(avg_position)}
+        return {"data": int(avg_position)}
 
     def get_brand_ranking(
         self,

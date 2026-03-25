@@ -94,6 +94,13 @@ def extract_url_data(text):
     return results
 
 
+def normalize_domain(d: str) -> str:
+    if not d:
+        return ""
+    d = d.lower().strip()
+    return d.replace("www.", "") if d.startswith("www.") else d
+
+
 @router.get("/citation-coverage")
 def get_domain_citation(
     parameters: Annotated[dict, Depends(common_parameters)],
@@ -106,6 +113,7 @@ def get_domain_citation(
     end_date = parameters.get("end_date", "")
     domain = parameters.get("domain", "")
     model = parameters.get("model", "")
+    domain = normalize_domain(domain)
 
     s3_keys = database.get_markdown_s3_keys(
         brand_report_id=brand_report_id,
