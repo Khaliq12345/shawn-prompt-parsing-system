@@ -137,6 +137,10 @@ def get_domain_citation(
 
     for s3_key in s3_keys:
         output = aws.get_file_content(s3_key)
+        if not output:
+            s3_keys.remove(s3_key)
+        if output == "Ai overview not visible":
+            s3_keys.remove(s3_key)
         markdown_parts.append(output)
 
         urls = extract_url_data(output)

@@ -77,14 +77,8 @@ class LLMService:
         print(config.MODEL_NAME)
 
     def count_word_with_apostrophe(self, word: str, content: str):
-        """
-        Count occurrences of a word in text, including the word with 's
-        """
-        # \b ensures we match whole words only
-        pattern = r"\b" + re.escape(word) + r"(?!\+)('s)?\b"
-        # Find all matches (case-insensitive)
-        matches = re.findall(pattern, content)
-        return len(matches)
+        pattern = r"\b" + re.escape(word) + r"(?:'s)?\b"
+        return len(re.findall(pattern, content, flags=re.IGNORECASE))
 
     def remove_links(self, content: str | None = None):
         """
@@ -172,6 +166,8 @@ class LLMService:
         for r in results:
             raw_brand = r.brand.lower().strip()
             brand_clean = to_canonical(raw_brand)
+            if brand_clean.endswith("."):
+                brand_clean = brand_clean.rstrip(".")
             if brand_clean in dedup:
                 continue
 
@@ -193,7 +189,6 @@ class LLMService:
 
         for brand, index in dedup.items():
             mention_count = self.count_word_with_apostrophe(brand, content)
-            mention_count = 1 if mention_count == 0 else mention_count
             if not (rank_map.get(brand)):
                 continue
             parsed_results.append(
@@ -209,7 +204,6 @@ class LLMService:
             )
 
         # Save to database
-        print(parsed_results)
         if self.save_to_db:
             self.clickhouse.insert_into_db(parsed_results)
 
@@ -396,7 +390,7 @@ if __name__ == "__main__":
         date="2025-10-05",
         model="google",
         brand="",
-        s3_key="perplexity/perplexity-355b1a4c-d163-41bf-bfb7-454c855ec6ed-5b0ddb91-20e1-4926-8236-6dc99f4f0dad-1773462819",
+        s3_key="perplexity/perplexity-63b054f3-8470-44e1-9047-4d2c80d6c9ac-f010823e-8bc4-40ad-82db-001c64b7cc13-1772966010",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()
