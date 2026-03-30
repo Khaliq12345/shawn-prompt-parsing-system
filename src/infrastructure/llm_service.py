@@ -189,6 +189,8 @@ class LLMService:
 
         for brand, index in dedup.items():
             mention_count = self.count_word_with_apostrophe(brand, content)
+            if mention_count == 0:
+                continue
             if not (rank_map.get(brand)):
                 continue
             parsed_results.append(
