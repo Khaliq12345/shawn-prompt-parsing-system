@@ -10,6 +10,39 @@ app = Celery(
     backend=REDIS_URL,
 )
 
+# Your existing settings
+app.conf.worker_prefetch_multiplier = 1
+app.conf.task_acks_late = True
+
+# --- Crash & restart resilience ---
+app.conf.worker_max_tasks_per_child = (
+    200  # Restart worker process after N tasks (prevents memory leaks)
+)
+app.conf.worker_max_memory_per_child = (
+    200_000  # Restart if worker exceeds 200MB (in KB)
+)
+
+# --- Connection resilience ---
+app.conf.broker_connection_retry_on_startup = True
+app.conf.broker_connection_retry = True
+app.conf.broker_connection_max_retries = None  # Retry forever
+app.conf.broker_transport_options = {
+    "visibility_timeout": 3600,  # 1 hour — match your longest task
+    "socket_keepalive": True,
+    "retry_on_timeout": True,
+}
+
+# --- Task failure resilience ---
+app.conf.task_reject_on_worker_lost = (
+    True  # Re-queue tasks if worker dies mid-execution
+)
+app.conf.task_serializer = "json"
+app.conf.result_serializer = "json"
+
+# --- Heartbeat & health ---
+app.conf.broker_heartbeat = 10  # Detect dead broker connections faster
+app.conf.broker_heartbeat_checkrate = 2
+
 
 @app.task
 def run_browser(
