@@ -147,7 +147,6 @@ def get_domain_citation(
         all_url_records.extend(urls)
 
         if any(u["domain"] == domain for u in urls):
-            print(u["domain"])
             coverage_num += 1
 
     all_markdown = " ".join(markdown_parts)
