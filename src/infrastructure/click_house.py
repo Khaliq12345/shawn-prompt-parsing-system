@@ -121,12 +121,12 @@ class ClickHouse:
                     SUM(
                         CASE
                             WHEN lower(brand) = lower(%(brand)s)
-                            toFloat64(coalesce(mention_count, 0))
+                            THEN toFloat64(coalesce(mention_count, 0))
                             ELSE 0
                         END
                     )
                     /
-                    NULLIF(SUM(toFloat64(mention_count)), 0)
+                    SUM(toFloat64(coalesce(mention_count, 0)))              
                 ) * 100 AS sov
             FROM default.brands
             WHERE brand_report_id = %(brand_report_id)s
@@ -136,11 +136,7 @@ class ClickHouse:
         """
 
         query = self.client.query(stmt, params)
-
-        if not query.row_count:
-            return {"data": 0.0}
-
-        sov = query.first_item.get("sov")
+        sov = query.first_item.get("sov") if query.first_item else None
         return {"data": float(sov) if sov else 0.0}
 
     def get_brand_coverage(
