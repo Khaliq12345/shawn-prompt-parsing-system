@@ -121,7 +121,7 @@ class ClickHouse:
                     SUM(
                         CASE
                             WHEN lower(brand) = lower(%(brand)s)
-                            THEN toFloat64(mention_count)
+                            toFloat64(coalesce(mention_count, 0))
                             ELSE 0
                         END
                     )
@@ -157,7 +157,6 @@ class ClickHouse:
             "start_date": start_date,
             "end_date": end_date,
         }
-
         model_filter = ""
         if model != "all":
             model_filter = "AND model = %(model)s"
@@ -166,20 +165,20 @@ class ClickHouse:
         stmt = f"""
             SELECT
                 COUNT(*) AS total_rows,
-                countIf(coalesce(mention_count, 0) >= 1) AS mentioned_rows
+                countIf(
+                    lower(brand) = lower(%(brand)s)
+                    AND coalesce(mention_count, 0) >= 1
+                ) AS mentioned_rows
             FROM default.brands
             WHERE brand_report_id = %(brand_report_id)s
-              AND lower(brand) = lower(%(brand)s)
               AND date >= %(start_date)s
               AND date <= %(end_date)s
               {model_filter}
         """
 
         result = self.client.query(stmt, params).first_item
-
         total = result.get("total_rows", 0)
         mentioned = result.get("mentioned_rows", 0)
-
         coverage = (mentioned / total) * 100 if total else 0
         return {"data": coverage}
 
