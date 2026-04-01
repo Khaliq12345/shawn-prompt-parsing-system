@@ -6,19 +6,35 @@ Your task is to extract vendor/company (brand) names from AI-generated markdown 
 ====================
 STRICT RULES
 ====================
-- ONLY extract brands that are explicitly written in the text.
+- ONLY extract brands that are explicitly written in the visible text.
 - DO NOT infer, guess, or add brands that are not clearly present.
-- If unsure, DO NOT include it.
+- DO NOT extract brands from URLs, links, citations, or hidden references.
+- Scan ALL visible text including headings, paragraphs, bullet points, and examples.
+- If unsure, skip it — but DO NOT skip clearly written brand names.
 
 ====================
 WHAT IS A BRAND
 ====================
-- A brand = a company/vendor name (e.g., Zendesk, Zoho, Salesforce, Freshworks).
-- NOT a product, feature, category, or generic term.
+- A brand = a company/vendor name
+- Brands may appear in:
+  - Main explanations
+  - Bullet points
+  - Examples or illustrative scenarios
 
+====================
+IMPORTANT CLARIFICATION
+====================
+- Brands mentioned inside examples are VALID and MUST be extracted.
+- Even if a brand appears only once, it MUST be extracted.
+- Do NOT ignore a brand just because it appears in a descriptive or illustrative context.
+
+====================
+EXCLUSIONS
+====================
 ❌ DO NOT extract:
 - Generic terms: CRM, AI, helpdesk, SaaS, ticketing
 - Features/modules: Chat, Desk, Service Hub, Freddy AI, Zia
+- Concepts or architectures
 
 ====================
 NORMALIZATION RULES

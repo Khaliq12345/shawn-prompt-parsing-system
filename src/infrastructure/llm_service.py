@@ -117,7 +117,6 @@ class LLMService:
         return cleaned_markdown.strip()
 
     def extract_brand_mentions(self):
-        logging.info(self.text_key)
         logging.info("- Starting the LLM prompt parsing system")
         parsed_results = []
         if self.model.lower() == "google":
@@ -392,7 +391,7 @@ if __name__ == "__main__":
         date="2025-10-05",
         model="google",
         brand="",
-        s3_key="perplexity/perplexity-63b054f3-8470-44e1-9047-4d2c80d6c9ac-f010823e-8bc4-40ad-82db-001c64b7cc13-1772966010",
+        s3_key="perplexity/perplexity-d2698e92-231e-490c-a406-bccec58832d2-ce0de56c-101a-4036-8e83-20d7c7b726bc-1774904093",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()

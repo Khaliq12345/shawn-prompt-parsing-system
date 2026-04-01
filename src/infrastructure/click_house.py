@@ -279,35 +279,31 @@ class ClickHouse:
     ) -> list:
         stmt = f"""
             SELECT
-                date,
+                toDate(date) AS day,
                 brands.brand,
                 SUM(brands.mention_count) AS total_mentions
             FROM default.brands
             WHERE brand_report_id = '{brand_report_id}'
             AND date <= '{end_date}' AND date >= '{start_date}'
             {"AND model = '" + model + "'" if model != "all" else ""}
-            GROUP BY date, brands.brand
-            ORDER BY date ASC, total_mentions DESC
+            GROUP BY day, brands.brand
+            ORDER BY day ASC, total_mentions DESC
         """
         query = self.client.query(stmt)
         if not query.row_count:
             return []
         results = query.named_results()
 
-        # Group results by date
         grouped_by_date = defaultdict(list)
         for row in results:
-            grouped_by_date[row["date"]].append(row)
+            grouped_by_date[row["day"]].append(row)
 
-        # Calculate rankings per date and collect points per brand
         brand_points = defaultdict(list)
-
         for date in sorted(grouped_by_date.keys()):
             rows = grouped_by_date[date]
             prev_mentions = None
             rank = 0
             skip = 1
-
             for row in rows:
                 mentions = row["total_mentions"] or 0
                 if mentions == prev_mentions:
@@ -315,7 +311,6 @@ class ClickHouse:
                 else:
                     rank += skip
                     skip = 1
-
                 brand_points[row["brand"]].append(
                     {
                         "date": date,
@@ -325,10 +320,8 @@ class ClickHouse:
                 )
                 prev_mentions = mentions
 
-        # Format output as list of brand objects
         ranking_over_time = [
             {"brand_name": brand_name, "points": points}
             for brand_name, points in brand_points.items()
         ]
-
         return ranking_over_time
