@@ -64,6 +64,7 @@ def extract_url_data(text):
     # Regex for http(s) URLs
     urls = extract_clean_links(text)
     urls = [u["url"] for u in urls]
+    print(urls)
     print(f"URLS - {len(urls)}")
     # Count how many times each URL appears
     url_counts = Counter(urls)

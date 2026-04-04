@@ -163,15 +163,4 @@ def extract_clean_links(content: str, model: str = "", google_citations: str = "
             }
         )
 
-    # -----------------------------
-    # 3. Deduplicate (important!)
-    # -----------------------------
-    seen = set()
-    unique_links = []
-
-    for link in links:
-        if link["url"] not in seen:
-            seen.add(link["url"])
-            unique_links.append(link)
-
-    return unique_links
+    return links
