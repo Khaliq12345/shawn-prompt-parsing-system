@@ -1,39 +1,20 @@
 from datetime import datetime
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends
-from google import genai
-from google.genai.types import GenerateContentConfig
 from src.infrastructure.aws_storage import AWSStorage
-from src.config.config import GEMINI_API_KEY, MODEL_NAME
 import dateparser
 from src.api.dependencies import database_depends
-import re
 from collections import Counter
 from urllib.parse import urlparse
+import asyncio
 
-from src.infrastructure.models import Domain_Model
-from src.infrastructure.prompt import get_domain_user_prompt
+from src.infrastructure.shared import extract_clean_links
+
 
 router = APIRouter(
     prefix="/report/sources/domain",
     responses={404: {"description": "Not found"}},
 )
-
-
-def get_domain_competitor(urls: list[str], domain: str):
-    """Get the competitors of any domain among a list of urls"""
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    response = client.models.generate_content(
-        model=MODEL_NAME,
-        contents=get_domain_user_prompt(urls, domain),
-        config=GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=list[Domain_Model],
-        ),
-    )
-    # Validate sentiments
-    results = response.parsed if response.parsed else []
-    return [result.domain for result in results]
 
 
 def get_date() -> str:
@@ -64,31 +45,33 @@ def common_parameters(
     }
 
 
+def extract_domain(clean_url):
+    parsed = urlparse(clean_url)
+    domain_parts = parsed.netloc.lower().split(".")
+
+    # Extract the main domain (e.g., nike.com from shop.nike.com)
+    if len(domain_parts) >= 2:
+        domain = ".".join(domain_parts[-2:])
+    else:
+        domain = parsed.netloc.lower()
+    return domain
+
+
 def extract_url_data(text):
     """
     Extract all URLs from text and return normalized URL, count, and main domain.
     """
     # Regex for http(s) URLs
-    url_pattern = r'https?://[^\s"\'<>]+'
-    urls = re.findall(url_pattern, text, flags=re.IGNORECASE)
-
+    urls = extract_clean_links(text)
+    urls = [u["url"] for u in urls]
+    print(f"URLS - {len(urls)}")
     # Count how many times each URL appears
     url_counts = Counter(urls)
 
     results = []
     for url, count in url_counts.items():
         clean_url = url.replace(")", "")
-        parsed = urlparse(clean_url)
-        domain_parts = parsed.netloc.lower().split(".")
-
-        # Extract the main domain (e.g., nike.com from shop.nike.com)
-        if len(domain_parts) >= 2:
-            domain = ".".join(domain_parts[-2:])
-        else:
-            domain = parsed.netloc.lower()
-        if (domain == "google.com") or ("gstatic.com" in domain):
-            continue
-
+        domain = extract_domain(clean_url)
         results.append({"normalised_url": clean_url, "count": count, "domain": domain})
 
     return results
@@ -98,11 +81,12 @@ def normalize_domain(d: str) -> str:
     if not d:
         return ""
     d = d.lower().strip()
-    return d.replace("www.", "") if d.startswith("www.") else d
+    domain = extract_domain(d)
+    return domain
 
 
 @router.get("/citation-coverage")
-def get_domain_citation(
+async def get_domain_citation(
     parameters: Annotated[dict, Depends(common_parameters)],
     database: database_depends,
 ):
@@ -111,9 +95,8 @@ def get_domain_citation(
     brand_report_id = parameters.get("brand_report_id", "")
     start_date = parameters.get("start_date", "")
     end_date = parameters.get("end_date", "")
-    domain = parameters.get("domain", "")
+    domain = normalize_domain(parameters.get("domain", ""))
     model = parameters.get("model", "")
-    domain = normalize_domain(domain)
 
     s3_keys = database.get_markdown_s3_keys(
         brand_report_id=brand_report_id,
@@ -131,17 +114,28 @@ def get_domain_citation(
             }
         }
 
-    coverage_num = 0
-    markdown_parts = []
-    all_url_records = []
+    # ---- ASYNC FETCH ----
+    semaphore = asyncio.Semaphore(20)
 
-    for s3_key in s3_keys:
-        output = aws.get_file_content(s3_key)
-        if not output:
-            s3_keys.remove(s3_key)
-        if output == "Ai overview not visible":
-            s3_keys.remove(s3_key)
-        markdown_parts.append(output)
+    async def fetch_s3(key):
+        async with semaphore:
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, aws.get_file_content, key)
+
+    outputs = await asyncio.gather(*(fetch_s3(k) for k in s3_keys))
+
+    # ---- PROCESS RESULTS ----
+    valid_outputs = []
+    valid_keys = []
+    all_url_records = []
+    coverage_num = 0
+
+    for key, output in zip(s3_keys, outputs):
+        if not output or output == "Ai overview not visible":
+            continue
+
+        valid_outputs.append(output)
+        valid_keys.append(key)
 
         urls = extract_url_data(output)
         all_url_records.extend(urls)
@@ -149,13 +143,21 @@ def get_domain_citation(
         if any(u["domain"] == domain for u in urls):
             coverage_num += 1
 
-    all_markdown = " ".join(markdown_parts)
+    if not valid_keys:
+        return {
+            "details": {
+                "citation": 0,
+                "coverage": 0.0,
+                "url_data": [],
+            }
+        }
+
+    all_markdown = " ".join(valid_outputs)
 
     url_records = extract_url_data(all_markdown)
     citation_count = sum(r["count"] for r in url_records if r["domain"] == domain)
 
-    print(coverage_num, len(s3_keys))
-    coverage = round((coverage_num / len(s3_keys)) * 100, 2)
+    coverage = round((coverage_num / len(valid_keys)) * 100, 2)
 
     return {
         "details": {

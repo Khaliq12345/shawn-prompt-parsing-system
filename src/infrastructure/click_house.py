@@ -41,6 +41,7 @@ class ClickHouse:
                 db.Column("date", DateTime),
                 db.Column("model", String),
                 db.Column("prompt_id", String),
+                db.Column("s3_key", String),
                 MergeTree(order_by="date"),
             )
             table.create(conn, checkfirst=True)
@@ -153,6 +154,7 @@ class ClickHouse:
             "start_date": start_date,
             "end_date": end_date,
         }
+
         model_filter = ""
         if model != "all":
             model_filter = "AND model = %(model)s"
@@ -160,22 +162,31 @@ class ClickHouse:
 
         stmt = f"""
             SELECT
-                COUNT(*) AS total_rows,
-                countIf(
-                    lower(brand) = lower(%(brand)s)
-                    AND coalesce(mention_count, 0) >= 1
-                ) AS mentioned_rows
-            FROM default.brands
-            WHERE brand_report_id = %(brand_report_id)s
-              AND date >= %(start_date)s
-              AND date <= %(end_date)s
-              {model_filter}
+                COUNT(*) AS total_s3_keys,
+                countIf(has_mention = 1) AS mentioned_s3_keys
+            FROM (
+                SELECT
+                    s3_key,
+                    max(
+                        lower(brand) = lower(%(brand)s)
+                        AND coalesce(mention_count, 0) >= 1
+                    ) AS has_mention
+                FROM default.brands
+                WHERE brand_report_id = %(brand_report_id)s
+                  AND date >= %(start_date)s
+                  AND date <= %(end_date)s
+                  {model_filter}
+                GROUP BY s3_key
+            )
         """
 
         result = self.client.query(stmt, params).first_item
-        total = result.get("total_rows", 0)
-        mentioned = result.get("mentioned_rows", 0)
+
+        total = result.get("total_s3_keys", 0)
+        mentioned = result.get("mentioned_s3_keys", 0)
+
         coverage = (mentioned / total) * 100 if total else 0
+
         return {"data": coverage}
 
     def get_brand_position(

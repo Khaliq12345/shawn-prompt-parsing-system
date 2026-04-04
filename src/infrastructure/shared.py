@@ -1,6 +1,9 @@
+from urllib.parse import urlparse, urlunparse
 import markdown2
 from markdownify import markdownify as md
 import re
+
+from selectolax.parser import HTMLParser
 
 CANONICAL_MAP = {
     "google": [
@@ -75,3 +78,100 @@ def super_clean(content: str, model: str):
         content = content.split("* []")[0]
     content = remove_links(clean_markdown(content))
     return content
+
+
+def extract_clean_links(content: str, model: str = "", google_citations: str = ""):
+    """Extract and clean links from markdown content (including citations)"""
+
+    BLOCKED_DOMAINS = {
+        "www.google.com",
+        "google.com",
+        "gstatic.com",
+        "www.gstatic.com",
+        "accounts.google.com",
+        "support.google.com",
+    }
+
+    if not content:
+        return []
+
+    full_content = f"{content} {google_citations}" if model == "Google" else content
+
+    links = []
+
+    # -----------------------------
+    # 1. Extract reference citations (e.g. [^1]: https://...)
+    # -----------------------------
+    citation_pattern = re.findall(r"\[\^\d+\]:\s*(https?://[^\s]+)", full_content)
+
+    for url in citation_pattern:
+        parsed = urlparse(url)
+        domain = parsed.netloc.lower()
+
+        if any(blocked in domain for blocked in BLOCKED_DOMAINS):
+            continue
+
+        clean_url = urlunparse(
+            (parsed.scheme, parsed.netloc, parsed.path, parsed.params, parsed.query, "")
+        )
+
+        links.append(
+            {
+                "title": "",  # citations usually don’t have titles
+                "domain": domain,
+                "url": clean_url,
+            }
+        )
+
+    # -----------------------------
+    # 2. Extract normal markdown links via HTML parsing
+    # -----------------------------
+    html_content = markdown2.markdown(full_content)
+    html = HTMLParser(html_content)
+    link_nodes = html.css("a")
+
+    for link_node in link_nodes:
+        href = link_node.attributes.get("href")
+
+        if not href or href.strip() in {"://", "#", "/"}:
+            continue
+
+        parsed = urlparse(href)
+        domain = parsed.netloc.lower()
+
+        if any(blocked in domain for blocked in BLOCKED_DOMAINS):
+            continue
+
+        clean_url = urlunparse(
+            (
+                parsed.scheme,
+                parsed.netloc,
+                parsed.path,
+                parsed.params,
+                parsed.query,
+                "",
+            )
+        )
+
+        title = link_node.text(separator=" ").strip()
+
+        links.append(
+            {
+                "title": title,
+                "domain": domain,
+                "url": clean_url,
+            }
+        )
+
+    # -----------------------------
+    # 3. Deduplicate (important!)
+    # -----------------------------
+    seen = set()
+    unique_links = []
+
+    for link in links:
+        if link["url"] not in seen:
+            seen.add(link["url"])
+            unique_links.append(link)
+
+    return unique_links

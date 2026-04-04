@@ -4,19 +4,16 @@ import re
 
 sys.path.append(".")
 
-import json
 import logging
-from urllib.parse import urlparse, urlunparse
 import time
 import markdown2
 from markdownify import markdownify as md
 from dateparser import parse
 from google import genai
 from google.genai.types import GenerateContentConfig
-from selectolax.parser import HTMLParser
 
 from src.config import config
-from src.infrastructure.shared import to_canonical
+from src.infrastructure.shared import to_canonical, extract_clean_links
 from src.infrastructure.aws_storage import AWSStorage
 from src.infrastructure.click_house import ClickHouse
 from src.infrastructure.database import DataBase
@@ -201,6 +198,7 @@ class LLMService:
                     "position": rank_map.get(brand),  # None if not found
                     "date": parse(self.date),
                     "model": self.model,
+                    "s3_key": self.text_key
                 }
             )
 
@@ -288,57 +286,19 @@ class LLMService:
         return None
 
     def get_citations(self):
-        """Convert markdown to html and extract links"""
+        """Build and store citations"""
 
         self.logger.info("Getting the citations")
 
+        links = extract_clean_links(
+            content=self.content if self.content else "",
+            model=self.model,
+            google_citations=self.google_citations,
+        )
+
         citations = []
-        BLOCKED_DOMAINS = {
-            "www.google.com",
-            "google.com",
-            "gstatic.com",
-            "www.gstatic.com",
-            "accounts.google.com",
-            "support.google.com",
-        }
-        if self.model == "Google":
-            html_content = (
-                markdown2.markdown(f"{self.content} {self.google_citations}")
-                if self.content
-                else ""
-            )
-        else:
-            html_content = markdown2.markdown(self.content) if self.content else ""
 
-        html = HTMLParser(html_content)
-        link_nodes = html.css("a")
-
-        rank = 1
-
-        for link_node in link_nodes:
-            href = link_node.attributes.get("href")
-            if not href or href.strip() in {"://", "#", "/"}:
-                continue
-
-            parsed = urlparse(href)
-            domain = parsed.netloc.lower()
-
-            if any(blocked in domain for blocked in BLOCKED_DOMAINS):
-                continue
-
-            title = link_node.text(separator=" ").strip()
-
-            clean_url = urlunparse(
-                (
-                    parsed.scheme,
-                    parsed.netloc,
-                    parsed.path,
-                    parsed.params,
-                    parsed.query,
-                    "",
-                )
-            )
-
+        for rank, link in enumerate(links, start=1):
             citation = Citations(
                 id=f"{self.process_id}-{rank}",
                 brand_report_id=self.brand_report_id,
@@ -347,13 +307,11 @@ class LLMService:
                 model=self.model,
                 brand=self.brand,
                 rank=rank,
-                title=title,
-                domain=domain,
-                norm_url=clean_url,
+                title=link["title"],
+                domain=link["domain"],
+                norm_url=link["url"],
             )
-
             citations.append(citation)
-            rank += 1
 
         print(f"Found -> {len(citations)} citations")
         for cit in citations:
@@ -361,6 +319,8 @@ class LLMService:
 
         if self.save_to_db:
             self.database.save_citations(citations)
+
+        return citations
 
     def main(self) -> None:
         """Start the whole parser workflow"""
@@ -384,14 +344,14 @@ class LLMService:
 
 if __name__ == "__main__":
     llm_service = LLMService(
-        save_to_db=False,
+        save_to_db=True,
         process_id=str(time.time_ns()),
         brand_report_id="br_12345",
         prompt_id="pt_12345",
         date="2025-10-05",
-        model="google",
+        model="perplexity",
         brand="",
-        s3_key="perplexity/perplexity-d2698e92-231e-490c-a406-bccec58832d2-ce0de56c-101a-4036-8e83-20d7c7b726bc-1774904093",
+        s3_key="perplexity/perplexity-a47894fa-a899-4391-b91f-039c7742f47a-682f9018-686c-40f1-8463-b1ec91338acc-1775113259",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()
