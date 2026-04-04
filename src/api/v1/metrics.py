@@ -142,7 +142,11 @@ def brand_ranking_over_time(
             end_date=arguments["end_date"],
             model=arguments["model"],
         )
-        return {"data": {"ranking": result or []}}
+        output = []
+        for r in result:
+            if r["brand_name"].lower() == arguments["brand"].lower():
+                output.append(r)
+        return {"data": {"ranking": output or []}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Server Error: {e}")
 

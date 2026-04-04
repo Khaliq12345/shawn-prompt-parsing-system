@@ -216,7 +216,6 @@ class DataBase:
             results = session.exec(statement).all()
             session.close()
 
-        print(f"Result - {results}")
         citations = [json.loads(result.model_dump_json()) for result in results]
         return citations
 
