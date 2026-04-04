@@ -4,7 +4,7 @@ sys.path.append("..")
 
 import json
 from datetime import date, datetime, timedelta
-from typing import Optional
+from typing import List, Optional
 
 import dateparser
 from sqlmodel import Session, and_, create_engine, select
@@ -142,7 +142,7 @@ class DataBase:
         Retrieve a list of citations for a given report.
 
         Args:
-            brand_report_id (str): Identifier of the brand report.
+            prompt_id (str): Identifier of the brand report.
             date (str | None): Optional specific date. If not provided, the most recent date is used.
             model (str): Optional model filter. Use "all" to ignore model filtering.
 
@@ -173,6 +173,50 @@ class DataBase:
             results = session.exec(statement).all()
             session.close()
 
+        citations = [json.loads(result.model_dump_json()) for result in results]
+        return citations
+
+    def get_citations_by_report(
+        self,
+        brand_report_id: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        model: str = "all",
+    ) -> List[dict]:
+        print(start_date, end_date)
+        """
+        Retrieve citations for a given brand report within a date range.
+
+        Args:
+            brand_report_id (str): Identifier of the brand report.
+            start_date (str | None): Start date filter.
+            end_date (str | None): End date filter.
+            model (str): Optional model filter. Use "all" to ignore.
+
+        Returns:
+            list[dict]: List of citation objects.
+        """
+
+        with Session(self.engine) as session:
+            statement = select(Citations).where(
+                Citations.brand_report_id == brand_report_id
+            )
+
+            # ---- Date filtering ----
+            if start_date:
+                statement = statement.where(Citations.date >= start_date)
+
+            if end_date:
+                statement = statement.where(Citations.date <= end_date)
+
+            # ---- Model filtering ----
+            if model.lower() != "all":
+                statement = statement.where(Citations.model == model)
+
+            results = session.exec(statement).all()
+            session.close()
+
+        print(f"Result - {results}")
         citations = [json.loads(result.model_dump_json()) for result in results]
         return citations
 

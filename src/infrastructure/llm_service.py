@@ -310,6 +310,7 @@ class LLMService:
                 title=link["title"],
                 domain=link["domain"],
                 norm_url=link["url"],
+                s3_key=self.s3_key
             )
             citations.append(citation)
 

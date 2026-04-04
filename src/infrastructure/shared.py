@@ -1,4 +1,6 @@
+from datetime import datetime, timedelta
 from urllib.parse import urlparse, urlunparse
+import dateparser
 import markdown2
 from markdownify import markdownify as md
 import re
@@ -164,3 +166,27 @@ def extract_clean_links(content: str, model: str = "", google_citations: str = "
         )
 
     return links
+
+
+def get_date() -> str:
+    """Get date"""
+    date_node = dateparser.parse("7 days Ago")
+    if date_node:
+        return date_node.strftime("%Y-%m-%d %H:%M:%S")
+    return ""
+
+
+def common_parameters(
+    brand: str,
+    brand_report_id: str,
+    end_date: str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"),
+    start_date: str = get_date(),
+    model: str = "all",
+):
+    return {
+        "brand": brand,
+        "brand_report_id": brand_report_id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "model": model,
+    }

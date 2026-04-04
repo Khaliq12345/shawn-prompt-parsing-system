@@ -33,6 +33,7 @@ class Citations(SQLModel, table=True):
     title: Optional[str]
     domain: Optional[str]
     norm_url: Optional[str]
+    s3_key: Optional[str]
 
 
 class Output_Reports(SQLModel, table=True):

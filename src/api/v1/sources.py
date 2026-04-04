@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends
 from src.infrastructure.aws_storage import AWSStorage
@@ -29,8 +29,8 @@ def common_parameters(
     brand_report_id: str,
     domain: str,
     model: str = "all",
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    start_date: str = get_date(),
+    end_date: str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S"),
 ):
     if not start_date:
         start_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -98,6 +98,11 @@ async def get_domain_citation(
     end_date = parameters.get("end_date", "")
     domain = normalize_domain(parameters.get("domain", ""))
     model = parameters.get("model", "")
+
+    citations = database.get_citations_by_report(
+        brand_report_id, start_date, end_date, model
+    )
+    print(citations)
 
     s3_keys = database.get_markdown_s3_keys(
         brand_report_id=brand_report_id,
