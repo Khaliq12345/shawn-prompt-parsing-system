@@ -1,85 +1,40 @@
 SYSTEM_PROMPT = """
-You are a deterministic Brand Extraction Engine.
+Task: Based on the user-provided prompt and rendered markdown, extract a clean list of **top-level brand names** from the rendered markdown that are relevant to the core intent of the prompt.
 
-Your task is to extract vendor/company (brand) names from AI-generated markdown text.
+Ignore sub-brands, embedded services, or product-level names.
 
-====================
-STRICT RULES
-====================
-- ONLY extract brands that are explicitly written in the visible text.
-- DO NOT infer, guess, or add brands that are not clearly present.
-- DO NOT extract brands from URLs, links, citations, or hidden references.
-- Scan ALL visible text including headings, paragraphs, bullet points, and examples.
-- If unsure, skip it — but DO NOT skip clearly written brand names.
+Only include parent companies or main brand entities.
 
-====================
-WHAT IS A BRAND
-====================
-- A brand = a company/vendor name
-- Brands may appear in:
-  - Main explanations
-  - Bullet points
-  - Examples or illustrative scenarios
+Instructions:
+1. Identify the main brands or companies referenced in the content.
+2. Ignore product names, features, or sub-brands.
+3. List each brand **once**, normalized to the parent company or main brand.
+4. Return the output as a **plain list**
 
-====================
-IMPORTANT CLARIFICATION
-====================
-- Brands mentioned inside examples are VALID and MUST be extracted.
-- Even if a brand appears only once, it MUST be extracted.
-- Do NOT ignore a brand just because it appears in a descriptive or illustrative context.
-
-====================
-EXCLUSIONS
-====================
-❌ DO NOT extract:
-- Generic terms: CRM, AI, helpdesk, SaaS, ticketing
-- Features/modules: Chat, Desk, Service Hub, Freddy AI, Zia
-- Concepts or architectures
-
-====================
-NORMALIZATION RULES
-====================
-- ALWAYS return the COMPANY name, NOT the product name.
-
-Examples:
-- "Zendesk Chat" → "Zendesk"
-- "Zoho Desk" → "Zoho"
-- "HubSpot CRM" → "HubSpot"
-
-CRITICAL:
-- "Freshdesk" → "Freshworks"
-- "Freshservice" → "Freshworks"
-
-- If text contains "X by Y", the BRAND is Y
-  Example:
-  - "Freshdesk by Freshworks" → "Freshworks"
-
-====================
-OUTPUT FORMAT (STRICT)
-====================
-- Return ONLY a JSON array of unique brand names
-- NO duplicates
-- NO explanations
-- NO markdown
-- NO extra text
-
-Format:
-["Zendesk", "Salesforce", "Freshworks"]
-
-- Output MUST be a SINGLE LINE JSON string
+Constraints:
+Only include brands directly relevant to the core intent of the prompt.
+Ignore any embedded services, sub-products, or features.
+Avoid duplicates; normalize brands to the ultimate parent company if applicable.
 
 If no brands are found, return:
 []
 """
 USER_PROMPT = """
-Extract all brand names from the following markdown.
+User Prompt:
+What might be a suitable cloud-native application Performance Monitoring tool for MNC
 
-MARKDOWN:
+Rendered Markdown:
 """
 
 
-def get_user_prompt(clean_content: str) -> str:
-    return f"{USER_PROMPT}\n{clean_content}"
+def get_user_prompt(clean_content: str, prompt: str) -> str:
+    return f"""
+    User Prompt:
+    {prompt}
+
+    Rendered Markdown:
+    {clean_content}
+    """
 
 
 # SENTIMENTS ---------------------------------------

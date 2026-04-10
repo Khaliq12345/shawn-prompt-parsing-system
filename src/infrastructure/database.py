@@ -7,7 +7,7 @@ from datetime import date, datetime, timedelta
 from typing import List, Optional
 
 import dateparser
-from sqlmodel import Session, and_, create_engine, select
+from sqlmodel import Session, and_, create_engine, select, text
 
 from src.config import config
 from src.infrastructure.models import (
@@ -350,3 +350,15 @@ class DataBase:
 
             session.close()
         return s3_keys
+
+    # ------------------------PROMPT-------------------------
+    def get_prompt(self, prompt_id: str) -> str:
+        with Session(self.engine) as session:
+            # 1. Define the raw SQL query with a named parameter
+            query = text(
+                f"SELECT prompt FROM schedules WHERE prompt_id = '{prompt_id}'"
+            )
+            # 2. Execute the query, binding the prompt_id to the :pid parameter
+            result = session.execute(query).scalar()
+            # 3. Return the string or a default value if no row was found
+            return str(result) if result is not None else ""

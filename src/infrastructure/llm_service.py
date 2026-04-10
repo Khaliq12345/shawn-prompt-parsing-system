@@ -122,9 +122,12 @@ class LLMService:
         else:
             content = self.remove_links()
 
+        prompt = self.database.get_prompt(self.prompt_id)
+        if not prompt:
+            return None
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
-            contents=get_user_prompt(content),
+            contents=get_user_prompt(content, prompt),
             config=GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=list[Brand_List],
@@ -343,14 +346,14 @@ class LLMService:
 
 if __name__ == "__main__":
     llm_service = LLMService(
-        save_to_db=True,
+        save_to_db=False,
         process_id=str(time.time_ns()),
         brand_report_id="br_12345",
-        prompt_id="pt_12345",
+        prompt_id="c05f8db6-f1c2-4457-b990-9aac8bc0551e",
         date="2025-10-05",
-        model="perplexity",
+        model="chatgpt",
         brand="",
-        s3_key="perplexity/perplexity-a47894fa-a899-4391-b91f-039c7742f47a-682f9018-686c-40f1-8463-b1ec91338acc-1775113259",
+        s3_key="chatgpt/chatgpt-45fb90b8-0fd7-4b8d-ae56-f91c97a3ea18-c05f8db6-f1c2-4457-b990-9aac8bc0551e-1775715300",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()
