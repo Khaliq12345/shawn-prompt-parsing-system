@@ -5,9 +5,7 @@ from fastapi import APIRouter, Depends
 import dateparser
 from src.api.dependencies import database_depends
 from collections import Counter
-from urllib.parse import urlparse
-
-from src.infrastructure.shared import extract_clean_links
+from src.infrastructure.shared import extract_clean_links, normalize_domain
 
 
 router = APIRouter(
@@ -44,19 +42,6 @@ def common_parameters(
     }
 
 
-def extract_domain(clean_url):
-    parsed = urlparse(clean_url)
-    domain_parts = parsed.netloc.lower().split(".")
-
-    # Extract the main domain (e.g., nike.com from shop.nike.com)
-    if len(domain_parts) >= 2:
-        domain = ".".join(domain_parts[-2:])
-    else:
-        domain = parsed.netloc.lower()
-        domain = domain if domain else parsed.path
-    return domain
-
-
 def extract_url_data(text):
     """
     Extract all URLs from text and return normalized URL, count, and main domain.
@@ -70,18 +55,10 @@ def extract_url_data(text):
     results = []
     for url, count in url_counts.items():
         clean_url = url.replace(")", "")
-        domain = extract_domain(clean_url)
+        domain = normalize_domain(url)
         results.append({"normalised_url": clean_url, "count": count, "domain": domain})
 
     return results
-
-
-def normalize_domain(d: str) -> str:
-    if not d:
-        return ""
-    d = d.lower().strip()
-    domain = extract_domain(d)
-    return domain
 
 
 @router.get("/citation-coverage")
@@ -117,6 +94,8 @@ async def get_domain_citation(
 
     for c in citations:
         norm_domain = c["domain"]
+        norm_domain = normalize_domain(norm_domain)
+
         url = c["norm_url"]
         s3_key = c["s3_key"]
 

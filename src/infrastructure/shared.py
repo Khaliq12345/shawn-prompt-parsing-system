@@ -6,6 +6,7 @@ from markdownify import markdownify as md
 import re
 
 from selectolax.parser import HTMLParser
+import tldextract
 
 CANONICAL_MAP = {
     "google": [
@@ -108,8 +109,7 @@ def extract_clean_links(content: str, model: str = "", google_citations: str = "
 
     for url in citation_pattern:
         parsed = urlparse(url)
-        domain = parsed.netloc.lower()
-
+        domain = normalize_domain(url)
         if any(blocked in domain for blocked in BLOCKED_DOMAINS):
             continue
 
@@ -139,7 +139,7 @@ def extract_clean_links(content: str, model: str = "", google_citations: str = "
             continue
 
         parsed = urlparse(href)
-        domain = parsed.netloc.lower()
+        domain = normalize_domain(href)
 
         if any(blocked in domain for blocked in BLOCKED_DOMAINS):
             continue
@@ -190,3 +190,13 @@ def common_parameters(
         "end_date": end_date,
         "model": model,
     }
+
+
+def normalize_domain(d: str) -> str:
+    if not d:
+        return ""
+    d = d.lower().strip()
+    domain_node = tldextract.extract(d)
+    domain = domain_node.domain
+    suffix = domain_node.suffix
+    return f"{domain}.{suffix}"

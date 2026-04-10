@@ -198,7 +198,7 @@ class LLMService:
                     "position": rank_map.get(brand),  # None if not found
                     "date": parse(self.date),
                     "model": self.model,
-                    "s3_key": self.text_key
+                    "s3_key": self.text_key,
                 }
             )
 
@@ -310,13 +310,11 @@ class LLMService:
                 title=link["title"],
                 domain=link["domain"],
                 norm_url=link["url"],
-                s3_key=self.s3_key
+                s3_key=self.s3_key,
             )
             citations.append(citation)
 
         print(f"Found -> {len(citations)} citations")
-        for cit in citations:
-            print(cit.norm_url)
 
         if self.save_to_db:
             self.database.save_citations(citations)
