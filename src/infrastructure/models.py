@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
 from sqlmodel import JSON, Field, SQLModel
@@ -8,6 +9,18 @@ class SentimentBody(BaseModel):
     brand_model: str
     positive_phrases: list[str] = Field(sa_type=JSON)
     negative_phrases: list[str] = Field(sa_type=JSON)
+
+
+class Brands(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    brand_report_id: str
+    brand: str
+    mention_count: int
+    position: int
+    date: datetime
+    model: str
+    prompt_id: str
+    s3_key: str
 
 
 class Sentiments(SQLModel, table=True):

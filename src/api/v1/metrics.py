@@ -4,7 +4,7 @@ from typing import Annotated
 import dateparser
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.infrastructure.click_house import ClickHouse
+from src.infrastructure.database import DataBase
 
 router = APIRouter(
     prefix="/report/metrics", responses={404: {"description": "Not found"}}
@@ -39,10 +39,10 @@ def common_parameters(
 @router.get("/mentions")
 def brand_mentions(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
+    database: Annotated[DataBase, Depends(DataBase)],
 ):
     try:
-        result = clickhouse.get_brand_mention(
+        result = database.get_brand_mention(
             brand=arguments["brand"],
             brand_report_id=arguments["brand_report_id"],
             start_date=arguments["start_date"],
@@ -58,10 +58,10 @@ def brand_mentions(
 @router.get("/share-of-voice")
 def brand_sov(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
+    database: Annotated[DataBase, Depends(DataBase)],
 ):
     try:
-        result = clickhouse.get_brand_sov(
+        result = database.get_brand_sov(
             brand=arguments["brand"],
             brand_report_id=arguments["brand_report_id"],
             start_date=arguments["start_date"],
@@ -77,10 +77,10 @@ def brand_sov(
 @router.get("/coverage")
 def brand_coverage(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
+    database: Annotated[DataBase, Depends(DataBase)],
 ):
     try:
-        result = clickhouse.get_brand_coverage(
+        result = database.get_brand_coverage(
             brand=arguments["brand"],
             brand_report_id=arguments["brand_report_id"],
             start_date=arguments["start_date"],
@@ -96,10 +96,10 @@ def brand_coverage(
 @router.get("/position")
 def brand_position(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
+    database: Annotated[DataBase, Depends(DataBase)],
 ):
     try:
-        result = clickhouse.get_brand_position(
+        result = database.get_brand_position(
             brand=arguments["brand"],
             brand_report_id=arguments["brand_report_id"],
             start_date=arguments["start_date"],
@@ -115,10 +115,10 @@ def brand_position(
 @router.get("/ranking")
 def brand_ranking(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
+    database: Annotated[DataBase, Depends(DataBase)],
 ):
     try:
-        result = clickhouse.get_brand_ranking(
+        result = database.get_brand_ranking(
             brand_report_id=arguments["brand_report_id"],
             start_date=arguments["start_date"],
             end_date=arguments["end_date"],
@@ -133,10 +133,10 @@ def brand_ranking(
 @router.get("/ranking-over-time")
 def brand_ranking_over_time(
     arguments: Annotated[dict, Depends(common_parameters)],
-    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
+    database: Annotated[DataBase, Depends(DataBase)],
 ):
     try:
-        result = clickhouse.get_brand_ranking_over_time(
+        result = database.get_brand_ranking_over_time(
             brand_report_id=arguments["brand_report_id"],
             start_date=arguments["start_date"],
             end_date=arguments["end_date"],
@@ -158,10 +158,10 @@ def get_brand_info(
     prompt_id: str,
     model: str,
     date: str,
-    clickhouse: Annotated[ClickHouse, Depends(ClickHouse)],
+    database: Annotated[DataBase, Depends(DataBase)],
 ):
     try:
-        result = clickhouse.get_info(
+        result = database.get_info(
             brand_report_id=brand_report_id, date=date, model=model, prompt_id=prompt_id
         )
         return result

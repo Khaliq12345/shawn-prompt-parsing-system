@@ -1,6 +1,8 @@
 import sys
 import re
 
+import dateparser
+
 
 sys.path.append(".")
 
@@ -8,16 +10,15 @@ import logging
 import time
 import markdown2
 from markdownify import markdownify as md
-from dateparser import parse
 from google import genai
 from google.genai.types import GenerateContentConfig
 
 from src.config import config
 from src.infrastructure.shared import to_canonical, extract_clean_links
 from src.infrastructure.aws_storage import AWSStorage
-from src.infrastructure.click_house import ClickHouse
 from src.infrastructure.database import DataBase
 from src.infrastructure.models import (
+    Brands,
     Citations,
     Output_Reports,
     SentimentBody,
@@ -66,8 +67,6 @@ class LLMService:
         self.google_citations = ""
         # initialise db
         self.database = DataBase()
-        # initialise clickhouse
-        self.clickhouse = ClickHouse()
         # initialise logger
         self.logger = logger
         self.save_to_db = save_to_db
@@ -113,7 +112,7 @@ class LLMService:
         )
         return cleaned_markdown.strip()
 
-    def extract_brand_mentions(self):
+    def extract_brand_mentions(self) -> list[Brands]:
         logging.info("- Starting the LLM prompt parsing system")
         parsed_results = []
         if self.model.lower() == "google":
@@ -123,8 +122,9 @@ class LLMService:
             content = self.remove_links()
 
         prompt = self.database.get_prompt(self.prompt_id)
+        prompt = "Working"
         if not prompt:
-            return None
+            return []
         response = self.client.models.generate_content(
             model=config.MODEL_NAME,
             contents=get_user_prompt(content, prompt),
@@ -157,7 +157,7 @@ class LLMService:
         results = response.parsed if response else []
 
         if not isinstance(results, list):
-            return None
+            return []
 
         content_lower = content.lower()
 
@@ -190,26 +190,28 @@ class LLMService:
             mention_count = self.count_word_with_apostrophe(brand, content)
             if mention_count == 0:
                 continue
-            if not (rank_map.get(brand)):
+            brand_rank = rank_map.get(brand)
+            if not brand_rank:
+                continue
+            date_node = dateparser.parse(self.date)
+            if not date_node:
                 continue
             parsed_results.append(
-                {
-                    "brand_report_id": self.brand_report_id,
-                    "prompt_id": self.prompt_id,
-                    "brand": brand.title(),
-                    "mention_count": mention_count,
-                    "position": rank_map.get(brand),  # None if not found
-                    "date": parse(self.date),
-                    "model": self.model,
-                    "s3_key": self.text_key,
-                }
+                Brands(
+                    brand_report_id=self.brand_report_id,
+                    prompt_id=self.prompt_id,
+                    brand=brand.title(),
+                    mention_count=mention_count,
+                    position=brand_rank,
+                    date=date_node,
+                    model=self.model,
+                    s3_key=self.text_key,
+                )
             )
 
-        # Save to database
-        if self.save_to_db:
-            self.clickhouse.insert_into_db(parsed_results)
+        return parsed_results
 
-    def save_brand_report_output(self):
+    def save_brand_report_output(self) -> Output_Reports:
         """Get the brand report outputs"""
         self.logger.info("Getting and saving the brand report")
         output_report = Output_Reports(
@@ -222,11 +224,9 @@ class LLMService:
             markdown=self.text_key,
         )
 
-        # saving the output report
-        if self.save_to_db:
-            self.database.save_output_reports(output_report)
+        return output_report
 
-    def get_sentiments(self):
+    def get_sentiments(self) -> list[Sentiments]:
         """Get the sentiment with LLM"""
         self.logger.info("Getting Sentiments with LLM")
         parsed_sentiments = []
@@ -261,7 +261,7 @@ class LLMService:
         dedup = set()
         sentiments = response.parsed if response.parsed else []
         if not isinstance(sentiments, list):
-            return None
+            return []
 
         for idx, sentiment in enumerate(sentiments):
             brand_name = sentiment.brand.strip().lower()
@@ -283,12 +283,9 @@ class LLMService:
                 )
             )
 
-        # save the sentiments
-        if self.save_to_db:
-            self.database.save_sentiments(parsed_sentiments)
-        return None
+        return parsed_sentiments
 
-    def get_citations(self):
+    def get_citations(self) -> list[Citations]:
         """Build and store citations"""
 
         self.logger.info("Getting the citations")
@@ -318,10 +315,6 @@ class LLMService:
             citations.append(citation)
 
         print(f"Found -> {len(citations)} citations")
-
-        if self.save_to_db:
-            self.database.save_citations(citations)
-
         return citations
 
     def main(self) -> None:
@@ -338,15 +331,17 @@ class LLMService:
         self.clean_content = self.clean_markdown()
 
         # get and save parsed data
-        self.extract_brand_mentions()
-        self.get_citations()
-        self.get_sentiments()
-        self.save_brand_report_output()
+        brands = self.extract_brand_mentions()
+        citations = self.get_citations()
+        sentiments = self.get_sentiments()
+        output_report = self.save_brand_report_output()
+        if self.save_to_db:
+            self.database.save_all(brands, citations, sentiments, output_report)
 
 
 if __name__ == "__main__":
     llm_service = LLMService(
-        save_to_db=False,
+        save_to_db=True,
         process_id=str(time.time_ns()),
         brand_report_id="br_12345",
         prompt_id="c05f8db6-f1c2-4457-b990-9aac8bc0551e",

@@ -1,3 +1,4 @@
+from collections import defaultdict
 import sys
 
 sys.path.append("..")
@@ -11,6 +12,7 @@ from sqlmodel import Session, and_, create_engine, select, text
 
 from src.config import config
 from src.infrastructure.models import (
+    Brands,
     Citations,
     Output_Reports,
     Sentiments,
@@ -28,6 +30,30 @@ class DataBase:
 
     def create_all_tables(self):
         SQLModel.metadata.create_all(self.engine)
+
+    def save_all(
+        self,
+        brands: list[Brands],
+        citations: list[Citations],
+        sentiments: list[Sentiments],
+        output_report: Output_Reports,
+    ):
+        print("Bulk Saving all data …")
+        with Session(self.engine) as session:
+            session.add_all(brands)
+            session.add_all(citations)
+            session.add_all(sentiments)
+            session.add(output_report)
+            session.commit()
+            session.close()
+
+    def save_brands(self, brands: list[Brands]) -> None:
+        """Bulk-insert a list of record dicts into the brands table."""
+        print("Saving analysis data …")
+        with Session(self.engine) as session:
+            session.add_all(brands)
+            session.commit()
+            session.close()
 
     def save_citations(self, citations: list[Citations]) -> None:
         print("Saving citations")
@@ -354,11 +380,299 @@ class DataBase:
     # ------------------------PROMPT-------------------------
     def get_prompt(self, prompt_id: str) -> str:
         with Session(self.engine) as session:
-            # 1. Define the raw SQL query with a named parameter
             query = text(
                 f"SELECT prompt FROM schedules WHERE prompt_id = '{prompt_id}'"
             )
-            # 2. Execute the query, binding the prompt_id to the :pid parameter
             result = session.execute(query).scalar()
-            # 3. Return the string or a default value if no row was found
             return str(result) if result is not None else ""
+
+    # --------------------------ANALYTICS------------------------------
+    def get_brand_mention(
+        self,
+        brand: str,
+        brand_report_id: str,
+        end_date: str,
+        model: str,
+        start_date: str,
+    ) -> dict:
+        model_filter = "AND model = :model" if model != "all" else ""
+        stmt = text(
+            f"""
+            SELECT COALESCE(SUM(mention_count), 0) AS total_mentions
+            FROM brands
+            WHERE LOWER(brand)    = LOWER(:brand)
+              AND brand_report_id = :brand_report_id
+              AND date            >= CAST(:start_date AS DATE)
+              AND date            <= CAST(:end_date AS DATE)
+              {model_filter}
+        """
+        )
+        params = dict(
+            brand=brand,
+            brand_report_id=brand_report_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if model != "all":
+            params["model"] = model
+
+        with Session(self.engine) as session:
+            row = session.exec(stmt.bindparams(**params)).first()
+            return {"data": row[0] if row else 0}
+
+    def get_brand_sov(
+        self,
+        brand: str,
+        brand_report_id: str,
+        end_date: str,
+        model: str,
+        start_date: str,
+    ) -> dict:
+        model_filter = "AND model = :model" if model != "all" else ""
+        stmt = text(
+            f"""
+            SELECT
+                (
+                    SUM(
+                        CASE
+                            WHEN LOWER(brand) = LOWER(:brand)
+                            THEN COALESCE(mention_count, 0)::FLOAT
+                            ELSE 0
+                        END
+                    )
+                    /
+                    NULLIF(SUM(COALESCE(mention_count, 0)::FLOAT), 0)
+                ) * 100 AS sov
+            FROM brands
+            WHERE brand_report_id = :brand_report_id
+                AND date >= CAST(:start_date AS DATE)
+                AND date <= CAST(:end_date AS DATE)
+                {model_filter}
+        """
+        )
+        params = dict(
+            brand=brand,
+            brand_report_id=brand_report_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if model != "all":
+            params["model"] = model
+
+        with Session(self.engine) as session:
+            row = session.exec(stmt.bindparams(**params)).first()
+            sov = row[0] if row else None
+            return {"data": round(float(sov), 2) if sov else 0.0}
+
+    def get_brand_coverage(
+        self,
+        brand: str,
+        brand_report_id: str,
+        end_date: str,
+        model: str,
+        start_date: str,
+    ) -> dict:
+        model_filter = "AND model = :model" if model != "all" else ""
+        stmt = text(
+            f"""
+            SELECT
+                COUNT(*) AS total_s3_keys,
+                COUNT(*) FILTER (WHERE has_mention = 1) AS mentioned_s3_keys
+            FROM (
+                SELECT
+                    s3_key,
+                    MAX(
+                        CASE
+                            WHEN LOWER(brand) = LOWER(:brand)
+                                 AND COALESCE(mention_count, 0) >= 1
+                            THEN 1 ELSE 0
+                        END
+                    ) AS has_mention
+                FROM brands
+                WHERE brand_report_id = :brand_report_id
+                  AND date >= CAST(:start_date AS DATE)
+                  AND date <= CAST(:end_date AS DATE)
+                  {model_filter}
+                GROUP BY s3_key
+            ) subquery
+        """
+        )
+        params = dict(
+            brand=brand,
+            brand_report_id=brand_report_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if model != "all":
+            params["model"] = model
+
+        with Session(self.engine) as session:
+            row = session.exec(stmt.bindparams(**params)).first()
+            total = row[0] if row else 0
+            mentioned = row[1] if row else 0
+            coverage = (mentioned / total) * 100 if total else 0
+            return {"data": coverage}
+
+    def get_brand_position(
+        self,
+        brand: str,
+        brand_report_id: str,
+        end_date: str,
+        model: str,
+        start_date: str,
+    ) -> dict:
+        model_filter = "AND model = :model" if model != "all" else ""
+        stmt = text(
+            f"""
+            SELECT
+                SUM(position) FILTER (WHERE LOWER(brand) = LOWER(:brand)) AS total_position,
+                COUNT(*)      FILTER (WHERE LOWER(brand) = LOWER(:brand)) AS brand_count
+            FROM brands
+            WHERE brand_report_id = :brand_report_id
+                AND date >= CAST(:start_date AS DATE)
+                AND date <= CAST(:end_date AS DATE)
+                {model_filter}
+        """
+        )
+        params = dict(
+            brand=brand,
+            brand_report_id=brand_report_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if model != "all":
+            params["model"] = model
+
+        with Session(self.engine) as session:
+            row = session.exec(stmt.bindparams(**params)).first()
+            total_position = row[0] or 0
+            brand_count = row[1] or 0
+            if brand_count == 0:
+                return {"data": 0}
+            avg_position = total_position / brand_count
+            return {"data": int(avg_position)}
+
+
+    def get_brand_ranking(
+        self,
+        brand_report_id: str,
+        start_date: str,
+        end_date: str,
+        model: str,
+    ) -> list:
+        model_filter = "AND model = :model" if model != "all" else ""
+        stmt = text(
+            f"""
+            SELECT brand, SUM(mention_count) AS total_mentions
+            FROM brands
+            WHERE brand_report_id = :brand_report_id
+                AND date >= CAST(:start_date AS DATE)
+                AND date <= CAST(:end_date AS DATE)
+                {model_filter}
+            GROUP BY brand
+            ORDER BY total_mentions DESC
+        """
+        )
+        params = dict(
+            brand_report_id=brand_report_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if model != "all":
+            params["model"] = model
+
+        with Session(self.engine) as session:
+            rows = session.exec(stmt.bindparams(**params)).fetchall()
+
+        if not rows:
+            return []
+
+        ranking = []
+        prev_mentions = None
+        rank = 0
+        skip = 1
+        for row in rows:
+            mentions = row[1] or 0
+            if mentions == prev_mentions:
+                skip += 1
+            else:
+                rank += skip
+                skip = 1
+            ranking.append(
+                {
+                    "rank": rank,
+                    "brand_name": row[0],
+                    "mention_count": mentions,
+                }
+            )
+            prev_mentions = mentions
+        return ranking
+
+
+    def get_brand_ranking_over_time(
+        self,
+        brand_report_id: str,
+        start_date: str,
+        end_date: str,
+        model: str,
+    ) -> list:
+        model_filter = "AND model = :model" if model != "all" else ""
+        stmt = text(
+            f"""
+            SELECT
+                date::DATE AS day,
+                brand,
+                SUM(mention_count) AS total_mentions
+            FROM brands
+            WHERE brand_report_id = :brand_report_id
+                AND date >= CAST(:start_date AS DATE)
+                AND date <= CAST(:end_date AS DATE)
+                {model_filter}
+            GROUP BY day, brand
+            ORDER BY day ASC, total_mentions DESC
+        """
+        )
+        params = dict(
+            brand_report_id=brand_report_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if model != "all":
+            params["model"] = model
+
+        with Session(self.engine) as session:
+            rows = session.exec(stmt.bindparams(**params)).fetchall()
+
+        if not rows:
+            return []
+
+        grouped_by_date = defaultdict(list)
+        for row in rows:
+            grouped_by_date[row[0]].append(row)
+
+        brand_points = defaultdict(list)
+        for day in sorted(grouped_by_date.keys()):
+            day_rows = grouped_by_date[day]
+            prev_mentions = None
+            rank = 0
+            skip = 1
+            for row in day_rows:
+                mentions = row[2] or 0
+                if mentions == prev_mentions:
+                    skip += 1
+                else:
+                    rank += skip
+                    skip = 1
+                brand_points[row[1]].append(
+                    {
+                        "date": day,
+                        "rank": rank,
+                        "mention_count": mentions,
+                    }
+                )
+                prev_mentions = mentions
+
+        return [
+            {"brand_name": brand_name, "points": points}
+            for brand_name, points in brand_points.items()
+        ]
