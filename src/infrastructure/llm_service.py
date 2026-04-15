@@ -2,6 +2,7 @@ import sys
 import re
 
 import dateparser
+from selectolax.parser import HTMLParser
 
 
 sys.path.append(".")
@@ -57,6 +58,7 @@ class LLMService:
         self.s3_key = s3_key
         self.text_key = f"{s3_key}/output.txt"
         self.image_key = f"{s3_key}/screenshot.png"
+        self.html_key = f"{s3_key}/output.html"
 
         # initialise others
         self.bucket = config.BUCKET_NAME
@@ -76,21 +78,24 @@ class LLMService:
         pattern = r"\b" + re.escape(word) + r"(?:'s)?\b"
         return len(re.findall(pattern, content, flags=re.IGNORECASE))
 
-    def remove_links(self, content: str | None = None):
+    def remove_links(self, content: str):
         """
-        Remove all URLs from text
+        Remove all URLs and markdown links from text
         """
-        # Pattern to match URLs (http, https, ftp, www, and common domain patterns)
-        url_pattern = r"https?://\S+|www\.\S+|ftp://\S+"
 
-        # Remove URLs
-        text_without_urls = re.sub(
-            url_pattern, "", content if content else self.clean_content
-        )
+        # 1. Remove markdown links [text](url) — keep nothing (inline citations)
+        text = re.sub(r"\[([^\]]*)\]\([^)]*\)", "", content)
 
-        # Clean up extra whitespace that might be left behind
-        text_without_urls = re.sub(r"\s+", " ", text_without_urls).strip()
-        return text_without_urls
+        # 2. Remove markdown reference-style links [text][ref] — keep nothing
+        text = re.sub(r"\[([^\]]*)\]\[[^\]]*\]", "", text)
+
+        # 3. Remove bare URLs (http, https, ftp, www)
+        text = re.sub(r"https?://\S+|www\.\S+|ftp://\S+", "", text)
+
+        # 4. Clean up extra whitespace
+        text = re.sub(r"\s+", " ", text).strip()
+
+        return text
 
     def clean_markdown(self, content: str | None = None) -> str:
         self.logger.info("Cleaning Content")
@@ -112,14 +117,38 @@ class LLMService:
         )
         return cleaned_markdown.strip()
 
+    def google_parser(self):
+        if not self.html_content:
+            return ""
+        node = HTMLParser(self.html_content)
+        # Remove citation buttons and links
+        for el in node.css("button"):
+            el.decompose()
+        answer = node.css_first('div[class="pWvJNd"]')
+        if not answer:
+            return ""
+        node_text = answer.text(separator=" ")
+        return node_text
+
+    def chatgpt_parser(self):
+        if not self.html_content:
+            return ""
+        node = HTMLParser(self.html_content)
+        for el in node.css("button, a"):
+            el.decompose()
+        node_text = node.text(separator=" ")
+        return node_text
+
     def extract_brand_mentions(self) -> list[Brands]:
         logging.info("- Starting the LLM prompt parsing system")
         parsed_results = []
+
         if self.model.lower() == "google":
-            content = self.content.split("* []")[0]
-            content = self.remove_links(self.clean_markdown(content))
-        else:
-            content = self.remove_links()
+            content = self.google_parser()
+        if self.model.lower() == "chatgpt":
+            content = self.chatgpt_parser()
+        if self.model.lower() == "perplexity":
+            content = self.remove_links(self.clean_content)
 
         prompt = self.database.get_prompt(self.prompt_id)
         prompt = "Working"
@@ -160,7 +189,6 @@ class LLMService:
             return []
 
         content_lower = content.lower()
-
         # STEP 1: collect unique brands with index
         for r in results:
             raw_brand = r.brand.lower().strip()
@@ -324,6 +352,7 @@ class LLMService:
 
         self.logger.info("Downloaiding content from S3")
         self.content = self.storage.get_file_content(self.text_key)
+        self.html_content = self.storage.get_file_content(self.html_key)
         if not self.content:
             return None
 
@@ -341,14 +370,14 @@ class LLMService:
 
 if __name__ == "__main__":
     llm_service = LLMService(
-        save_to_db=True,
+        save_to_db=False,
         process_id=str(time.time_ns()),
-        brand_report_id="br_12345",
-        prompt_id="c05f8db6-f1c2-4457-b990-9aac8bc0551e",
+        brand_report_id="288ffd7b-0574-43e6-bfa4-39ce9aaec88d",
+        prompt_id="230a8816-adef-4736-aa41-56dc96e474da",
         date="2025-10-05",
-        model="chatgpt",
+        model="google",
         brand="",
-        s3_key="chatgpt/chatgpt-45fb90b8-0fd7-4b8d-ae56-f91c97a3ea18-c05f8db6-f1c2-4457-b990-9aac8bc0551e-1775715300",
+        s3_key="google/google-brand_report_0-Prompt_3-1776239192",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()
