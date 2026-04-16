@@ -151,7 +151,6 @@ class LLMService:
             content = self.remove_links(self.clean_content)
 
         prompt = self.database.get_prompt(self.prompt_id)
-        prompt = "Working"
         if not prompt:
             return []
         response = self.client.models.generate_content(
