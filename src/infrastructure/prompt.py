@@ -1,23 +1,72 @@
 SYSTEM_PROMPT = """
-Task: Based on the user-provided prompt and rendered markdown, extract a clean list of **top-level brand names** from the rendered markdown that are relevant to the core intent of the prompt.
+Task:
+Based on the user-provided prompt and rendered markdown, extract a deduplicated list of the primary brand/entities that are being presented to the user as the main comparable options in the answer.
 
-Ignore sub-brands, embedded services, or product-level names.
+Goal:
+Return the decision-level brand/entity that best represents what the answer is recommending, comparing, or describing to the user.
 
-Only include parent companies or main brand entities.
+Critical rule:
+Only return entity names that explicitly appear in the rendered markdown.
+Do not invent, translate, or replace an entity with a name that does not appear in the text.
 
-Instructions:
-1. Identify the main brands or companies referenced in the content.
-2. Ignore product names, features, or sub-brands.
-3. List each brand **once**, normalized to the parent company or main brand.
-4. Return the output as a **plain list**
+Intent alignment rule (IMPORTANT):
+Only return entities that directly answer the user’s prompt as primary options or recommendations.
 
-Constraints:
-Only include brands directly relevant to the core intent of the prompt.
-Ignore any embedded services, sub-products, or features.
-Avoid duplicates; normalize brands to the ultimate parent company if applicable.
+Do NOT return entities that are mentioned only as:
+- integrations (e.g., AWS, GCP, Azure)
+- supporting platforms
+- dependencies
+- infrastructure
+- contextual references or examples
 
-If no brands are found, return:
-[]
+Example:
+Prompt: “What is the best APM tool?”
+Answer: “Datadog integrates well with AWS, GCP, Azure”
+→ Output: [“Datadog”]
+→ Do NOT return: [“AWS”, “GCP”, “Azure”]
+
+Core Rules:
+1. Return only entities directly relevant to the core intent of the prompt.
+
+2. Return only one final entity per brand family per answer.
+3. If both a parent company and a consumer-facing brand appear together, select the entity that is the main subject of the answer.
+The main subject is defined as:
+- the entity whose features, capabilities, or benefits are described
+- the entity that is repeated or emphasized in the answer
+- the entity that a user would recognize as the option being recommended or compared
+Do NOT select based on position (e.g., first or second in a phrase).
+Do NOT select based on formatting (e.g., brackets, dashes).
+
+4. If a product/tool is mentioned together with its parent company, and the answer describes the product/tool’s features or capabilities, return the product/tool name.
+  - Example: “Cisco AppDynamics” → “AppDynamics”
+  - Example: “AppDynamics (Cisco)” → “AppDynamics”
+
+5. If a consumer product model appears with a master brand, return the master brand.
+  - Example: “Nike Pegasus” → “Nike”
+  - Example: “Adidas Ultraboost” → “Adidas”
+
+6. If multiple sub-services belong to the same umbrella brand/ecosystem, return the umbrella/master brand only if it explicitly appears in the text.
+  - Example: “GrabFood, GrabPay, GrabExpress, Grab” → “Grab”
+  - If the umbrella brand does not explicitly appear, return the visible service names as written.
+
+7. If the entity is already a standalone well-known tool, project, or product brand, keep it as-is.
+  - Example: “Prometheus” → “Prometheus”
+  - Example: “Datadog” → “Datadog”
+
+8. Do NOT return generic categories, features, functions, adjectives, or descriptive phrases.
+
+9. Prefer the entity that is the main subject of the answer, not merely ownership attribution.
+
+10. Prefer user-facing comparable entities over legal parent companies.
+
+11. Output only the final deduplicated entity names.
+
+Tie-breakers:
+- Prefer the entity most directly described in the answer.
+- Prefer the entity repeated or emphasized more in the answer.
+- Prefer entities presented as recommendations or options.
+- Prefer user-facing comparable brands over parent companies.
+- Prefer umbrella/master brands over sub-services or product models, but only if they explicitly appear in the text.
 """
 USER_PROMPT = """
 User Prompt:
