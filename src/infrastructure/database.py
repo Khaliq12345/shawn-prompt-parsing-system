@@ -552,7 +552,6 @@ class DataBase:
             avg_position = total_position / brand_count
             return {"data": int(avg_position)}
 
-
     def get_brand_ranking(
         self,
         brand_report_id: str,
@@ -607,7 +606,6 @@ class DataBase:
             )
             prev_mentions = mentions
         return ranking
-
 
     def get_brand_ranking_over_time(
         self,
