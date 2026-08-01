@@ -122,20 +122,17 @@ class LLMService:
             return ""
         node = HTMLParser(self.html_content)
         # Remove citation buttons and links
-        for el in node.css("button"):
-            el.decompose()
-        answer = node.css_first('div[class="pWvJNd"]')
-        if not answer:
-            return ""
-        node_text = answer.text(separator=" ")
+        for el in node.css("a, button"):
+            el.unwrap()
+        node_text = node.text(separator=" ")
         return node_text
 
     def chatgpt_parser(self):
         if not self.html_content:
             return ""
         node = HTMLParser(self.html_content)
-        for el in node.css("button, a"):
-            el.decompose()
+        for el in node.css("a, button"):
+            el.unwrap()
         node_text = node.text(separator=" ")
         return node_text
 
@@ -372,11 +369,11 @@ if __name__ == "__main__":
         save_to_db=False,
         process_id=str(time.time_ns()),
         brand_report_id="288ffd7b-0574-43e6-bfa4-39ce9aaec88d",
-        prompt_id="230a8816-adef-4736-aa41-56dc96e474da",
+        prompt_id="Prompt_78",
         date="2025-10-05",
-        model="google",
+        model="perplexity",
         brand="",
-        s3_key="google/google-brand_report_0-Prompt_3-1776239192",
+        s3_key="perplexity/perplexity-brand_report_7-Prompt_78-1785532000",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()
