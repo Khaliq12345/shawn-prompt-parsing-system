@@ -24,7 +24,12 @@ from src.infrastructure.models import (
 class DataBase:
     def __init__(self) -> None:
         self.engine = create_engine(
-            f"postgresql+psycopg://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:5432/{config.DB_NAME}"
+            f"postgresql+psycopg://{config.DB_USER}:{config.DB_PASSWORD}@{config.DB_HOST}:5432/{config.DB_NAME}",
+            pool_size=5,  # Number of persistent connections
+            max_overflow=5,  # Extra temporary connections
+            pool_timeout=30,  # Seconds to wait for a free connection
+            pool_recycle=1800,  # Recycle connections every 30 minutes
+            pool_pre_ping=True,  # Verify connection before using it
         )
         self.create_all_tables()
 
