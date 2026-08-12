@@ -407,8 +407,8 @@ class DataBase:
             FROM brands
             WHERE LOWER(brand)    = LOWER(:brand)
               AND brand_report_id = :brand_report_id
-              AND date            >= CAST(:start_date AS DATE)
-              AND date            <= CAST(:end_date AS DATE)
+              AND date            >= CAST(:start_date AS TIMESTAMP)
+              AND date < CAST(:end_date AS TIMESTAMP) + INTERVAL '1 day'
               {model_filter}
         """
         )
@@ -450,8 +450,8 @@ class DataBase:
                 ) * 100 AS sov
             FROM brands
             WHERE brand_report_id = :brand_report_id
-                AND date >= CAST(:start_date AS DATE)
-                AND date <= CAST(:end_date AS DATE)
+                AND date >= CAST(:start_date AS TIMESTAMP)
+                AND date < CAST(:end_date AS TIMESTAMP) + INTERVAL '1 day'
                 {model_filter}
         """
         )
@@ -495,8 +495,8 @@ class DataBase:
                     ) AS has_mention
                 FROM brands
                 WHERE brand_report_id = :brand_report_id
-                  AND date >= CAST(:start_date AS DATE)
-                  AND date <= CAST(:end_date AS DATE)
+                  AND date >= CAST(:start_date AS TIMESTAMP)
+                  AND date < CAST(:end_date AS TIMESTAMP) + INTERVAL '1 day'
                   {model_filter}
                 GROUP BY s3_key
             ) subquery
@@ -534,8 +534,8 @@ class DataBase:
                 COUNT(*)      FILTER (WHERE LOWER(brand) = LOWER(:brand)) AS brand_count
             FROM brands
             WHERE brand_report_id = :brand_report_id
-                AND date >= CAST(:start_date AS DATE)
-                AND date <= CAST(:end_date AS DATE)
+                AND date >= CAST(:start_date AS TIMESTAMP)
+                AND date < CAST(:end_date AS TIMESTAMP) + INTERVAL '1 day'
                 {model_filter}
         """
         )
@@ -570,8 +570,8 @@ class DataBase:
             SELECT brand, SUM(mention_count) AS total_mentions
             FROM brands
             WHERE brand_report_id = :brand_report_id
-                AND date >= CAST(:start_date AS DATE)
-                AND date <= CAST(:end_date AS DATE)
+                AND date >= CAST(:start_date AS TIMESTAMP)
+                AND date < CAST(:end_date AS TIMESTAMP) + INTERVAL '1 day'
                 {model_filter}
             GROUP BY brand
             ORDER BY total_mentions DESC
@@ -628,8 +628,8 @@ class DataBase:
                 SUM(mention_count) AS total_mentions
             FROM brands
             WHERE brand_report_id = :brand_report_id
-                AND date >= CAST(:start_date AS DATE)
-                AND date <= CAST(:end_date AS DATE)
+                AND date >= CAST(:start_date AS TIMESTAMP)
+                AND date < CAST(:end_date AS TIMESTAMP) + INTERVAL '1 day'
                 {model_filter}
             GROUP BY day, brand
             ORDER BY day ASC, total_mentions DESC

@@ -41,6 +41,7 @@ def brand_mentions(
     arguments: Annotated[dict, Depends(common_parameters)],
     database: Annotated[DataBase, Depends(DataBase)],
 ):
+    print(arguments)
     try:
         result = database.get_brand_mention(
             brand=arguments["brand"],
