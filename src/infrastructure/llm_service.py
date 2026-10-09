@@ -368,12 +368,12 @@ if __name__ == "__main__":
     llm_service = LLMService(
         save_to_db=False,
         process_id=str(time.time_ns()),
-        brand_report_id="288ffd7b-0574-43e6-bfa4-39ce9aaec88d",
-        prompt_id="Prompt_78",
+        brand_report_id="1ba1f13a-20cc-4abf-93cd-f2ec4b54ae42",
+        prompt_id="ddc3b589-81b8-44ba-8f1b-571b1b62aa95",
         date="2025-10-05",
-        model="perplexity",
+        model="google",
         brand="",
-        s3_key="perplexity/perplexity-brand_report_7-Prompt_78-1785532000",
+        s3_key="google/google-1ba1f13a-20cc-4abf-93cd-f2ec4b54ae42-ddc3b589-81b8-44ba-8f1b-571b1b62aa95-1791352356",
         logger=logging.Logger(name="TESTING: "),
     )
     llm_service.main()

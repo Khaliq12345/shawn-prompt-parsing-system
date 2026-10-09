@@ -4,7 +4,7 @@ import dateparser
 import markdown2
 from markdownify import markdownify as md
 import re
-
+import httpx
 from selectolax.parser import HTMLParser
 import tldextract
 
@@ -84,7 +84,7 @@ def super_clean(content: str, model: str):
 
 
 def extract_clean_links(content: str, model: str = "", google_citations: str = ""):
-    """Extract and clean links from markdown content (including citations)"""
+    """Extract and clean links from markdown content (including citations and Google redirects)"""
 
     BLOCKED_DOMAINS = {
         "www.google.com",
@@ -102,28 +102,33 @@ def extract_clean_links(content: str, model: str = "", google_citations: str = "
 
     links = []
 
+    # Helper to process and filter individual URLs
+    def process_url(url: str, title: str = ""):
+        # Resolve Google /goto redirect links before blocking/parsing
+        if model == "Google" and ("/goto?" in url or "google.com/goto" in url):
+            url = resolve_google_goto_url(url)
+
+        parsed = urlparse(url)
+        domain = normalize_domain(url)
+
+        if any(blocked in domain for blocked in BLOCKED_DOMAINS):
+            return None
+
+        clean_url = urlunparse(
+            (parsed.scheme, parsed.netloc, parsed.path, parsed.params, parsed.query, "")
+        )
+
+        return {"title": title, "domain": domain, "url": clean_url}
+
     # -----------------------------
     # 1. Extract reference citations (e.g. [^1]: https://...)
     # -----------------------------
     citation_pattern = re.findall(r"\[\^\d+\]:\s*(https?://[^\s]+)", full_content)
 
     for url in citation_pattern:
-        parsed = urlparse(url)
-        domain = normalize_domain(url)
-        if any(blocked in domain for blocked in BLOCKED_DOMAINS):
-            continue
-
-        clean_url = urlunparse(
-            (parsed.scheme, parsed.netloc, parsed.path, parsed.params, parsed.query, "")
-        )
-
-        links.append(
-            {
-                "title": "",  # citations usually don’t have titles
-                "domain": domain,
-                "url": clean_url,
-            }
-        )
+        link_data = process_url(url, title="")
+        if link_data:
+            links.append(link_data)
 
     # -----------------------------
     # 2. Extract normal markdown links via HTML parsing
@@ -138,32 +143,10 @@ def extract_clean_links(content: str, model: str = "", google_citations: str = "
         if not href or href.strip() in {"://", "#", "/"}:
             continue
 
-        parsed = urlparse(href)
-        domain = normalize_domain(href)
-
-        if any(blocked in domain for blocked in BLOCKED_DOMAINS):
-            continue
-
-        clean_url = urlunparse(
-            (
-                parsed.scheme,
-                parsed.netloc,
-                parsed.path,
-                parsed.params,
-                parsed.query,
-                "",
-            )
-        )
-
         title = link_node.text(separator=" ").strip()
-
-        links.append(
-            {
-                "title": title,
-                "domain": domain,
-                "url": clean_url,
-            }
-        )
+        link_data = process_url(href, title=title)
+        if link_data:
+            links.append(link_data)
 
     return links
 
@@ -200,3 +183,26 @@ def normalize_domain(d: str) -> str:
     domain = domain_node.domain
     suffix = domain_node.suffix
     return f"{domain}.{suffix}"
+
+
+def resolve_google_goto_url(goto_url: str, timeout: float = 30.0) -> str | None:
+    """Resolves a Google /goto redirect URL to its final destination using httpx."""
+    if goto_url.startswith("/"):
+        goto_url = "https://www.google.com" + goto_url
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        )
+    }
+
+    try:
+        # follow_redirects=True ensures httpx automatically walks the redirect chain
+        with httpx.Client(follow_redirects=True, timeout=timeout) as client:
+            response = client.get(goto_url, headers=headers)
+            return str(response.url)
+    except httpx.HTTPError as e:
+        print(f"Failed to resolve URL: {e}")
+        return None
