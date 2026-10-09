@@ -98,14 +98,16 @@ def extract_clean_links(content: str, model: str = "", google_citations: str = "
     if not content:
         return []
 
-    full_content = f"{content} {google_citations}" if model == "Google" else content
+    full_content = (
+        f"{content} {google_citations}" if model.lower() == "google" else content
+    )
 
     links = []
 
     # Helper to process and filter individual URLs
     def process_url(url: str, title: str = ""):
         # Resolve Google /goto redirect links before blocking/parsing
-        if model == "Google" and ("/goto?" in url or "google.com/goto" in url):
+        if model.lower() == "google" and ("/goto?" in url or "google.com/goto" in url):
             url = resolve_google_goto_url(url)
 
         parsed = urlparse(url)
